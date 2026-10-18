@@ -199,6 +199,12 @@ func _arcade_from_menu_to_game_over() -> void:
 	_expect(mode.hud.board.status.text == "No se pudo cargar la tabla", "offline status: %s" % mode.hud.board.status.text)
 	_expect(not mode.hud.next_label.visible, "next line kept after the table failed")
 
+	# A slow start-of-run load that arrives after death must not replace the final table.
+	main.preview.top_loaded.emit([{"name": "Old", "score": 999, "wave": 9}])
+	main.preview.failed.emit()
+	_expect(mode.hud.board.status.text == "No se pudo cargar la tabla", "late preview replaced the final table: %s" % mode.hud.board.status.text)
+	_expect(mode.hud.board.rows.get_child_count() == 0, "late preview rows shown after death")
+
 	mode.hud.show_leaderboard([{"name": "Ana", "score": 40, "wave": 1}, {"name": "Bo", "score": 20, "wave": 1}], "Ana", 40)
 	_expect(not mode.hud.board.status.visible, "status still shown with rows")
 	_expect(mode.hud.board.rows.get_child_count() == 2 * LeaderboardTable.COLUMNS, "board rows: %d" % mode.hud.board.rows.get_child_count())

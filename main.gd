@@ -4,7 +4,11 @@ extends Node
 ## Arcade adds the difficulty ramp, the score and the global leaderboard, wired here so
 ## modes/ stays unaware of how difficulty is chosen.
 
+## Submits the finished run and loads the final table.
 var leaderboard: Leaderboard
+## Loads the table at the start, for the next place to beat. A separate instance so a
+## slow answer arriving after death is told apart from the final table and dropped.
+var preview: Leaderboard
 
 @onready var survival: SurvivalMode = $Survival
 
@@ -34,13 +38,27 @@ func _apply_mode() -> void:
 	leaderboard.top_loaded.connect(_on_top_loaded)
 	leaderboard.failed.connect(survival.hud.show_leaderboard_error)
 	Events.player_died.connect(_on_player_died)
-	# Loaded up front so the HUD can show the next place to beat during the run.
-	leaderboard.fetch_top()
+
+	preview = Leaderboard.new()
+	add_child(preview)
+	preview.top_loaded.connect(_on_preview_loaded)
+	preview.failed.connect(_on_preview_failed)
+	preview.fetch_top()
 
 
 func _on_player_died() -> void:
 	var keeper: ScoreKeeper = survival.get_node("Score")
 	leaderboard.submit_and_fetch(GameSession.player_name, keeper.score, survival.spawner.wave)
+
+
+func _on_preview_loaded(rows: Array) -> void:
+	if not survival.player.health.is_dead():
+		_on_top_loaded(rows)
+
+
+func _on_preview_failed() -> void:
+	if not survival.player.health.is_dead():
+		survival.hud.show_leaderboard_error()
 
 
 func _on_top_loaded(rows: Array) -> void:
