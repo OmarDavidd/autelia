@@ -17,6 +17,8 @@ var scenarios := {
 	"etapa4-oleada": _stage4_wave,
 	"etapa5-hud": _stage5_hud,
 	"etapa5-fin": _stage5_game_over,
+	"etapa6-oleada": _stage5_hud,
+	"etapa6-personajes": _stage6_lineup,
 }
 
 
@@ -133,3 +135,34 @@ func _stage5_game_over() -> void:
 			break
 		await get_tree().physics_frame
 	await _frames(20)
+
+
+## Static lineup of every character and effect, for the style section of the thesis.
+func _stage6_lineup() -> void:
+	var sandbox := _sandbox()
+	var world: Node2D = sandbox.world
+	var player: Player = sandbox.player
+	player.global_position = Vector2(300, 360)
+	player.aim_override = Vector2(1000, 300)
+	var still := func(node: Node) -> void:
+		node.set_physics_process(false)
+	var chaser := Sandbox.spawn(world, "res://core/enemies/chaser.tscn", Vector2(500, 360))
+	var shooter := Sandbox.spawn(world, "res://core/enemies/shooter.tscn", Vector2(680, 360))
+	Sandbox.spawn(world, "res://core/enemies/target_dummy.tscn", Vector2(860, 360))
+	var marker := SpawnMarker.new()
+	world.add_child(marker)
+	marker.global_position = Vector2(1020, 360)
+	marker._elapsed = 0.25
+	await _frames(2)
+	for node in [chaser, shooter, marker]:
+		still.call(node)
+		node.queue_redraw()
+	for spec in [[Vector2(380, 300), Vector2.RIGHT, false], [Vector2(1150, 300), Vector2.LEFT, true]]:
+		var bullet: Bullet = load("res://core/combat/bullet.tscn").instantiate()
+		bullet.direction = spec[1]
+		bullet.outlined = spec[2]
+		bullet.color = Palette.ENEMY if spec[2] else Palette.INK
+		world.add_child(bullet)
+		bullet.global_position = spec[0]
+		still.call(bullet)
+	await _frames(2)
