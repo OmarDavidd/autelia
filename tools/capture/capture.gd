@@ -23,8 +23,10 @@ var scenarios := {
 	"etapa7-alta": _stage7_high,
 	"etapa7-panel": _stage7_panel,
 	"etapa7-bot": _stage7_bot_session,
-	"feel-inicio": _feel_start_screen,
+	"feel-inicio": _feel_main_menu,
 	"feel-muerte": _feel_death_burst,
+	"menu-acerca": _menu_about,
+	"pausa": _pause_screen,
 }
 
 
@@ -250,8 +252,8 @@ func _dodge(player: Player, enemies: Node, arena: Arena) -> void:
 			Input.action_release(pair[0])
 
 
-func _feel_start_screen() -> void:
-	StartScreen.seen = false
+func _feel_main_menu() -> void:
+	MainMenu.seen = false
 	stage.add_child(load("res://main.tscn").instantiate())
 	await _frames(20)
 
@@ -268,3 +270,25 @@ func _feel_death_burst() -> void:
 	chaser.take_hit(1000.0)
 	shooter.take_hit(1000.0)
 	await _frames(7)
+
+
+func _menu_about() -> void:
+	MainMenu.seen = false
+	var main: Node = load("res://main.tscn").instantiate()
+	stage.add_child(main)
+	await _frames(3)
+	main.get_node("MainMenu").show_about()
+	await _frames(10)
+
+
+func _pause_screen() -> void:
+	var mode: SurvivalMode = load("res://modes/survival/survival.tscn").instantiate()
+	mode.run_seed = 2026
+	stage.add_child(mode)
+	mode.player.health.invulnerable_left = 999.0
+	for i in int(60 * 6.0):
+		_aim_nearest(mode.player, mode.enemies)
+		await get_tree().physics_frame
+	mode.get_node("PauseMenu").open()
+	await _frames(10)
+	get_tree().paused = false
