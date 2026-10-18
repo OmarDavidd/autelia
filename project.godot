@@ -14,6 +14,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 
 Events="*res://autoload/events.gd"
 DebugTools="*res://autoload/debug_tools.gd"
+Sfx="*res://audio/sfx.gd"
 
 [display]
 
