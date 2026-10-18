@@ -14,6 +14,7 @@ var stage: SubViewport
 var scenarios := {
 	"etapa2-disparo": _stage2_shooting,
 	"etapa3-enemigos": _stage3_enemies,
+	"etapa4-oleada": _stage4_wave,
 }
 
 
@@ -79,5 +80,29 @@ func _stage3_enemies() -> void:
 	for i in 55:
 		if is_instance_valid(chaser):
 			player.aim_override = chaser.global_position
+		await get_tree().physics_frame
+	Input.action_release("shoot")
+
+
+## Aims at the closest enemy, like a simple bot.
+func _aim_nearest(player: Player, enemies: Node) -> void:
+	var best: Node2D
+	for enemy in enemies.get_children():
+		if enemy is Enemy and (best == null or player.global_position.distance_to(enemy.global_position) < player.global_position.distance_to(best.global_position)):
+			best = enemy
+	if best:
+		player.aim_override = best.global_position
+
+
+func _stage4_wave() -> void:
+	var mode: SurvivalMode = load("res://modes/survival/survival.tscn").instantiate()
+	mode.run_seed = 2026
+	stage.add_child(mode)
+	# Keep the player alive and let enemies build up, then fire for the last moment.
+	mode.player.health.invulnerable_left = 999.0
+	for i in int(60 * 9.5):
+		_aim_nearest(mode.player, mode.enemies)
+		if i == int(60 * 9.0):
+			Input.action_press("shoot")
 		await get_tree().physics_frame
 	Input.action_release("shoot")
