@@ -25,7 +25,8 @@ func _physics_process(delta: float) -> void:
 
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("take_hit"):
-		body.take_hit(damage, source)
+		# The shooter may have died while the bullet was in flight.
+		body.take_hit(damage, source if is_instance_valid(source) else null)
 	queue_free()
 
 

@@ -20,6 +20,7 @@ func _run() -> void:
 	await _chaser_approaches_and_hurts()
 	await _shooter_keeps_distance_and_hits()
 	await _killing_blow_reports_hit_then_death()
+	await _bullet_from_dead_shooter_still_hits()
 
 	if failures.is_empty():
 		print("SMOKE OK: chaser, shooter and death events behave as expected")
@@ -76,5 +77,29 @@ func _killing_blow_reports_hit_then_death() -> void:
 		failures.append("expected [hit, killed], got %s" % [event_log])
 	if is_instance_valid(chaser):
 		failures.append("dead enemy was not removed")
+	sandbox.world.queue_free()
+	await _frames(2)
+
+
+## Regression: a bullet whose shooter was freed mid-flight must still damage the player.
+func _bullet_from_dead_shooter_still_hits() -> void:
+	var sandbox := Sandbox.create(self)
+	var player: Player = sandbox.player
+	var shooter: Shooter = Sandbox.spawn(sandbox.world, SHOOTER, Vector2(640, 60))
+	var bullet: Bullet
+	for i in 180:
+		await get_tree().physics_frame
+		for child in sandbox.world.get_children():
+			if child is Bullet and child.source == shooter:
+				bullet = child
+		if bullet:
+			break
+	if bullet == null:
+		failures.append("shooter never fired")
+	else:
+		shooter.queue_free()
+		await _frames(90)
+		if player.health.current >= player.health.max_health:
+			failures.append("bullet from a freed shooter did not damage the player")
 	sandbox.world.queue_free()
 	await _frames(2)
