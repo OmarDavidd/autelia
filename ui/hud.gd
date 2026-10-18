@@ -4,6 +4,9 @@ extends CanvasLayer
 ## Updates from Events and the mode's public getters; it never changes game state.
 ## Copy is in Spanish because the players are Spanish speakers.
 
+## Lets the player's death animation play before the panel covers it.
+const GAME_OVER_DELAY := 0.6
+
 var health_bar: ProgressBar
 var wave_label: Label
 var kills_label: Label
@@ -50,6 +53,11 @@ func _on_enemy_killed(_enemy: Node) -> void:
 
 
 func _on_player_died() -> void:
+	# A signal connection (not await) is dropped automatically if the HUD is freed first.
+	get_tree().create_timer(GAME_OVER_DELAY).timeout.connect(_show_game_over)
+
+
+func _show_game_over() -> void:
 	var wave := _mode.spawner.wave if _mode else 0
 	game_over_label.text = "Fin de la partida\nOleada alcanzada: %d · Eliminaciones: %d\n\nPresiona R para reiniciar" % [wave, _kills]
 	game_over_panel.visible = true

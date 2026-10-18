@@ -60,7 +60,7 @@ func _run() -> void:
 	_expect(not hud.game_over_panel.visible, "game over visible before death")
 	player.health.invulnerable_left = 0.0
 	player.take_hit(1000.0)
-	await _frames(2)
+	await _frames(int(60 * (Hud.GAME_OVER_DELAY + 0.1)))
 	_expect(hud.game_over_panel.visible, "game over panel not shown after death")
 	_expect(hud.game_over_label.text.contains("Oleada alcanzada: 1"), "game over text: '%s'" % hud.game_over_label.text)
 

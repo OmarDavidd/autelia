@@ -34,6 +34,7 @@ func take_hit(damage: float, _source: Node = null) -> void:
 
 func _on_died() -> void:
 	Events.enemy_killed.emit(self)
+	DeathBurst.spawn(self, Palette.ENEMY)
 	_respawn_left = respawn_time
 
 

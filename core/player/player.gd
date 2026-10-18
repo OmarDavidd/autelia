@@ -53,4 +53,10 @@ func _on_died() -> void:
 	Events.player_died.emit()
 	set_physics_process(false)
 	velocity = Vector2.ZERO
-	look.modulate.a = 0.35
+	look.modulate.a = 1.0
+	DeathBurst.spawn(self, Palette.PLAYER)
+	# Squash, then deflate and fade out.
+	var tween := create_tween()
+	tween.tween_property(look, "scale", Vector2(1.45, 0.55), 0.12)
+	tween.tween_property(look, "scale", Vector2(0.2, 0.2), 0.35).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(look, "modulate:a", 0.0, 0.35)

@@ -65,6 +65,12 @@ func _apply_contact_damage() -> void:
 		target.take_hit(contact_damage, self)
 
 
+## Color of the death burst; subclasses use their body color.
+func burst_color() -> Color:
+	return Palette.ENEMY
+
+
 func _on_died() -> void:
 	Events.enemy_killed.emit(self)
+	DeathBurst.spawn(self, burst_color())
 	queue_free()
