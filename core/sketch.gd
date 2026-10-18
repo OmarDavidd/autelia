@@ -50,17 +50,66 @@ static func motion_lines(ci: CanvasItem, direction: Vector2, radius: float) -> v
 		ci.draw_line(start + offset, end + offset, Palette.INK_SOFT, 2.0, true)
 
 
-## Square with rounded corners turned 45 degrees, outlined in ink.
-static func rounded_diamond(ci: CanvasItem, half: float, fill: Color) -> void:
+## Rounded square outline for the shooter, cached per fill color (its size never changes;
+## callers scale the drawing transform instead).
+static func _diamond_box(fill: Color) -> StyleBoxFlat:
 	var box: StyleBoxFlat = _diamond_boxes.get(fill)
 	if box == null:
 		box = StyleBoxFlat.new()
 		box.bg_color = fill
 		box.border_color = Palette.INK
 		box.set_border_width_all(int(Palette.OUTLINE_WIDTH))
-		box.set_corner_radius_all(int(half * 0.5))
+		box.set_corner_radius_all(int(Palette.ART_RADIUS * 0.41))
 		box.anti_aliasing = true
 		_diamond_boxes[fill] = box
-	ci.draw_set_transform(Vector2.ZERO, PI / 4.0)
-	ci.draw_style_box(box, Rect2(-half, -half, half * 2.0, half * 2.0))
+	return box
+
+
+# Character art. Each function draws around `at`, scaled by `size`; `pop` swells the body
+# (hit feedback) but not the shadow. They all leave the identity transform when done.
+
+static func draw_player(ci: CanvasItem, aim: Vector2, at := Vector2.ZERO, size := 1.0) -> void:
+	var r := Palette.ART_RADIUS
+	ci.draw_set_transform(at, 0.0, Vector2.ONE * size)
+	hatch_shadow(ci, Vector2(0.0, r + 6.0), r - 2.0)
+	capsule(ci, aim * (r - 6.0), aim * (r + 12.0), 11.0, Palette.INK)
+	blob(ci, Vector2.ZERO, r, Palette.PLAYER)
+	eyes(ci, Vector2(0.0, -4.0), aim, 6.0, Vector2(4.0, 5.5))
+	var blush := Color(Palette.ENEMY, 0.45)
+	ellipse(ci, Vector2(-10.0, 5.0), Vector2(3.2, 2.0), blush)
+	ellipse(ci, Vector2(10.0, 5.0), Vector2(3.2, 2.0), blush)
+	ci.draw_set_transform(Vector2.ZERO)
+
+
+static func draw_chaser(ci: CanvasItem, look: Vector2, fill: Color, at := Vector2.ZERO,
+		size := 1.0, pop := 1.0) -> void:
+	var r := Palette.ART_RADIUS
+	ci.draw_set_transform(at, 0.0, Vector2.ONE * size)
+	hatch_shadow(ci, Vector2(0.0, r + 6.0), r - 2.0)
+	ci.draw_set_transform(at, 0.0, Vector2.ONE * size * pop)
+	blob(ci, Vector2.ZERO, r, fill)
+	# Angry brows, eyes that track the target, small frown.
+	ci.draw_line(Vector2(-10, -9), Vector2(-3, -5), Palette.INK, 3.0, true)
+	ci.draw_line(Vector2(10, -9), Vector2(3, -5), Palette.INK, 3.0, true)
+	ci.draw_circle(Vector2(-6, 0) + look * 1.5, 3.2, Palette.INK)
+	ci.draw_circle(Vector2(6, 0) + look * 1.5, 3.2, Palette.INK)
+	ci.draw_arc(Vector2(0, 12), 5.0, PI * 1.2, PI * 1.8, 8, Palette.INK, 2.5, true)
+	ci.draw_set_transform(Vector2.ZERO)
+
+
+static func draw_shooter(ci: CanvasItem, aim: Vector2, look: Vector2, fill: Color,
+		at := Vector2.ZERO, size := 1.0, pop := 1.0) -> void:
+	var r := Palette.ART_RADIUS
+	var half := r * 0.82
+	ci.draw_set_transform(at, 0.0, Vector2.ONE * size)
+	hatch_shadow(ci, Vector2(0.0, r + 8.0), r)
+	ci.draw_set_transform(at, 0.0, Vector2.ONE * size * pop)
+	capsule(ci, aim * (r - 4.0), aim * (r + 12.0), 9.0, Palette.INK)
+	ci.draw_set_transform(at, PI / 4.0, Vector2.ONE * size * pop)
+	ci.draw_style_box(_diamond_box(fill), Rect2(-half, -half, half * 2.0, half * 2.0))
+	# One big eye that follows the target.
+	ci.draw_set_transform(at, 0.0, Vector2.ONE * size * pop)
+	ci.draw_circle(Vector2.ZERO, 7.5, Palette.WHITE)
+	ci.draw_arc(Vector2.ZERO, 7.5, 0.0, TAU, 24, Palette.INK, 2.5, true)
+	ci.draw_circle(look * 2.5, 3.0, Palette.INK)
 	ci.draw_set_transform(Vector2.ZERO)
