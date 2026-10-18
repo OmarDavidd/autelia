@@ -19,3 +19,6 @@ __pycache__/
 
 # Thesis documentation (log, evidence screenshots, sample data) stays local, outside the repo
 docs/tesis/
+
+# Supabase project for the Arcade leaderboard (copy online/leaderboard.example.cfg)
+online/leaderboard.cfg

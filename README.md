@@ -100,8 +100,9 @@ su API REST. Para configurarla:
 
 1. Crea un proyecto en Supabase y ejecuta [`docs/leaderboard.sql`](docs/leaderboard.sql) en el
    editor SQL.
-2. Copia la URL del proyecto y la clave pública (*publishable* o *anon*) en
-   [`online/leaderboard_config.gd`](online/leaderboard_config.gd). Nunca la clave secreta.
+2. Copia [`online/leaderboard.example.cfg`](online/leaderboard.example.cfg) como
+   `online/leaderboard.cfg` y escribe la URL del proyecto y la clave pública (*publishable* o
+   *anon*). Nunca la clave secreta. Git ignora ese archivo y la exportación web lo incluye.
 
 La clave pública queda dentro del juego a propósito: las reglas de seguridad de la tabla solo
 permiten leer e insertar puntajes con valores razonables, nunca editarlos ni borrarlos. Sin

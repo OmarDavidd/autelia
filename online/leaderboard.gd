@@ -10,8 +10,8 @@ signal failed
 const TOP_SIZE := 10
 const TIMEOUT := 8.0
 
-var url := LeaderboardConfig.URL
-var key := LeaderboardConfig.KEY
+var url := LeaderboardConfig.value("url")
+var key := LeaderboardConfig.value("key")
 
 
 static func headers(api_key: String) -> PackedStringArray:
