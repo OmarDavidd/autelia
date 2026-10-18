@@ -28,6 +28,7 @@ func _run() -> void:
 	await _experiment_has_no_touch_controls()
 	await _sticks_move_aim_and_shoot()
 	await _death_offers_restart()
+	await _mouse_player_on_touch_device_keeps_r_hint()
 	_rotate_hint_only_in_portrait()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 	TouchControls.forced = false
@@ -100,11 +101,17 @@ func _sticks_move_aim_and_shoot() -> void:
 	var mode: SurvivalMode = main.get_node("Survival")
 	var player := mode.player
 	player.health.invulnerable_left = 999.0
-	_expect(not InputMap.action_get_events("shoot").any(func(e: InputEvent) -> bool: return e is InputEventMouseButton),
-		"a touch must not also fire through the emulated mouse click")
+	# Dormant until the first touch: a touch laptop played with the mouse keeps working.
+	_expect(not controls.active, "touch controls active before any touch")
+	_expect(_mouse_fires(), "mouse click must keep firing until the screen is touched")
+	_expect(not player.aim_override.is_finite(), "mouse must keep aiming until the screen is touched")
+	_expect(not controls.pause_button.visible, "pause button shown before any touch")
 
 	# Left half: a floating move stick.
 	_touch(controls, 0, Vector2(200, 500), true)
+	_expect(controls.active and controls.pause_button.visible, "first touch did not wake the controls")
+	_expect(not _mouse_fires(), "a touch must not also fire through the emulated mouse click")
+	_expect(player.aim_override.is_finite(), "touch aim not taken over")
 	_drag(controls, 0, Vector2(200 + TouchControls.STICK_RADIUS, 500))
 	var move := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	_expect(move.x > 0.9 and absf(move.y) < 0.1, "full right drag must move right, got %s" % move)
@@ -146,11 +153,28 @@ func _sticks_move_aim_and_shoot() -> void:
 	_expect(Input.get_vector("move_left", "move_right", "move_up", "move_down") == Vector2.ZERO, "pause left the stick pressed")
 	mode.get_node("PauseMenu").resume()
 
+	# A real mouse (not one emulated from touches) hands control back to it.
+	var emulated := InputEventMouseMotion.new()
+	emulated.device = InputEvent.DEVICE_ID_EMULATION
+	controls._input(emulated)
+	_expect(controls.active, "emulated mouse motion from a touch put the controls to sleep")
+	var real := InputEventMouseMotion.new()
+	real.device = 0
+	controls._input(real)
+	_expect(not controls.active, "real mouse motion did not hand control back to the mouse")
+	_expect(_mouse_fires(), "mouse click not restored after switching back to the mouse")
+	_expect(not player.aim_override.is_finite(), "mouse aim not restored after switching back")
+	_expect(not controls.pause_button.visible, "pause button kept after switching back to the mouse")
+
 	main.queue_free()
 	await _frames(2)
 	_expect(InputMap.action_get_events("shoot").any(func(e: InputEvent) -> bool: return e is InputEventMouseButton),
 		"mouse click not restored to shoot after leaving")
 	GameSession.mode = GameSession.Mode.EXPERIMENT
+
+
+func _mouse_fires() -> bool:
+	return InputMap.action_get_events("shoot").any(func(e: InputEvent) -> bool: return e is InputEventMouseButton)
 
 
 func _death_offers_restart() -> void:
@@ -176,3 +200,17 @@ func _rotate_hint_only_in_portrait() -> void:
 	_expect(RotateHint.needed(Vector2(400, 800), true), "portrait phone must ask to rotate")
 	_expect(not RotateHint.needed(Vector2(800, 400), true), "landscape phone asked to rotate")
 	_expect(not RotateHint.needed(Vector2(400, 800), false), "portrait window without touch asked to rotate")
+
+
+func _mouse_player_on_touch_device_keeps_r_hint() -> void:
+	TouchControls.forced = true
+	var main := await _start(GameSession.Mode.ARCADE)
+	var controls: TouchControls = main.get_node("TouchControls")
+	var mode: SurvivalMode = main.get_node("Survival")
+	mode.player.health.take_damage(10000.0)
+	await _frames(50)
+	_expect(not controls.restart_button.visible, "restart button shown to a mouse player")
+	_expect(mode.hud.hint_label.text.contains("R para"), "mouse player lost the R hint: %s" % mode.hud.hint_label.text)
+	main.queue_free()
+	GameSession.mode = GameSession.Mode.EXPERIMENT
+	await _frames(2)

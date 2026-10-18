@@ -4,6 +4,9 @@ extends CanvasLayer
 ## an aim stick on the right half that fires while held, a pause button and, at game over,
 ## a restart button. Sticks feed the same input actions as the keyboard, and the aim goes
 ## through Player.aim_override, so the core never knows which device is playing.
+##
+## Dormant until the first touch, and back to sleep when a real mouse moves: on a touch laptop
+## played with the mouse, clicking still fires and the mouse still aims.
 
 const STICK_RADIUS := 90.0
 ## Fraction of the radius ignored around the center, so resting thumbs do nothing.
@@ -17,10 +20,13 @@ static var forced := false
 
 var pause_button: Button
 var restart_button: Button
+## True while the player is using touch; false while dormant or using the mouse.
+var active := false
 
 var _player: Player
 var _pause_menu: PauseMenu
 var _hud: Hud
+var _mouse_hint := ""
 var _canvas: Control
 ## Per stick: the touch index driving it (-1 when idle), where it started, and its vector.
 var _move := {"index": -1, "origin": Vector2.ZERO, "value": Vector2.ZERO}
@@ -38,18 +44,11 @@ static func wanted() -> bool:
 func _ready() -> void:
 	layer = 10
 	_build()
-	for event in InputMap.action_get_events("shoot"):
-		if event is InputEventMouseButton:
-			_removed_shoot_events.append(event)
-			InputMap.action_erase_event("shoot", event)
 	Events.player_died.connect(_on_player_died)
 
 
 func _exit_tree() -> void:
-	_release_all()
-	for event in _removed_shoot_events:
-		InputMap.action_add_event("shoot", event)
-	_removed_shoot_events.clear()
+	_set_active(false)
 
 
 func _notification(what: int) -> void:
@@ -61,21 +60,47 @@ func bind(mode: SurvivalMode) -> void:
 	_player = mode.player
 	_pause_menu = mode.get_node("PauseMenu")
 	_hud = mode.hud
-	_hud.restart_hint = ""
-	_player.aim_override = _player.global_position + _aim_direction * AIM_REACH
+	_mouse_hint = _hud.restart_hint
+
+
+## Touch takes over shooting and aiming; the mouse gets them back when it is used again.
+func _set_active(value: bool) -> void:
+	if value == active:
+		return
+	active = value
+	_release_all()
+	if active:
+		for event in InputMap.action_get_events("shoot"):
+			if event is InputEventMouseButton:
+				_removed_shoot_events.append(event)
+				InputMap.action_erase_event("shoot", event)
+	else:
+		for event in _removed_shoot_events:
+			InputMap.action_add_event("shoot", event)
+		_removed_shoot_events.clear()
+	if _player:
+		_player.aim_override = _player.global_position + _aim_direction * AIM_REACH if active else Vector2.INF
+	if _hud:
+		_hud.restart_hint = "" if active else _mouse_hint
+	pause_button.visible = active
 
 
 func _physics_process(_delta: float) -> void:
 	# Keep the aim point ahead of the player as it moves.
-	if _player and not _player.health.is_dead():
+	if active and _player and not _player.health.is_dead():
 		_player.aim_override = _player.global_position + _aim_direction * AIM_REACH
 
 
 func _input(event: InputEvent) -> void:
 	if _player == null or _player.health.is_dead():
 		return
+	# Touches also arrive as emulated mouse events; only a real mouse means the player switched.
+	if event is InputEventMouse and event.device != InputEvent.DEVICE_ID_EMULATION:
+		_set_active(false)
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
+			_set_active(true)
 			_press(event.index, event.position)
 		else:
 			_lift(event.index)
@@ -151,6 +176,8 @@ func _toggle_pause() -> void:
 func _on_player_died() -> void:
 	_release_all()
 	pause_button.visible = false
+	if not active:
+		return
 	# Same delay as the game-over panel, so it does not cover the death animation.
 	get_tree().create_timer(Hud.GAME_OVER_DELAY).timeout.connect(func() -> void: restart_button.visible = true)
 
@@ -181,6 +208,7 @@ func _build() -> void:
 	pause_button.offset_top = 104.0
 	pause_button.offset_bottom = 160.0
 	pause_button.pressed.connect(_toggle_pause)
+	pause_button.visible = false
 	add_child(pause_button)
 
 	restart_button = UiStyle.button("Reiniciar", 260)
