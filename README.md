@@ -5,7 +5,7 @@ Es un juego completo y, a la vez, el **entorno experimental de una tesis** sobre
 dinámica de la dificultad: cada partida se puede repetir con una semilla, la dificultad se
 controla con un solo valor y el juego registra métricas del jugador en cada oleada.
 
-![Oleada en curso](docs/tesis/capturas/etapa6-oleada.png)
+![Oleada en curso](docs/images/etapa6-oleada.png)
 
 ## ¿Por qué "Autelia"?
 
@@ -29,7 +29,7 @@ objetivo de la dificultad adaptativa.
 - **Efectos de sonido sintetizados** por un script del proyecto, sin recursos de terceros.
 
 <p align="center">
-  <img src="docs/tesis/capturas/etapa6-personajes.png" alt="Personajes: jugador, perseguidor, tirador, muñeco de práctica y aviso de aparición" width="720">
+  <img src="docs/images/etapa6-personajes.png" alt="Personajes: jugador, perseguidor, tirador, muñeco de práctica y aviso de aparición" width="720">
 </p>
 
 ## Cómo jugar
@@ -72,8 +72,8 @@ ajuste base.
 | Vida de los enemigos | ×0,8 | ×1,0 | ×1,2 |
 
 <p align="center">
-  <img src="docs/tesis/capturas/etapa7-baja.png" alt="Misma oleada con dificultad 0,1" width="420">
-  <img src="docs/tesis/capturas/etapa7-alta.png" alt="Misma oleada con dificultad 0,9" width="420">
+  <img src="docs/images/etapa7-baja.png" alt="Misma oleada con dificultad 0,1" width="420">
+  <img src="docs/images/etapa7-alta.png" alt="Misma oleada con dificultad 0,9" width="420">
   <br>
   <em>La misma oleada (semilla 2026) con dificultad 0,1 y con dificultad 0,9.</em>
 </p>
@@ -97,9 +97,7 @@ Cada oleada es una ventana de medición y genera una fila en
 | `kills`, `deaths` | Eliminaciones, y si la ventana terminó por la muerte del jugador |
 | `active_time`, `kills_per_minute` | Tiempo jugado en la ventana y ritmo de eliminaciones |
 
-Hay un ejemplo sintético, generado por un bot, en
-[`docs/tesis/ejemplos/telemetria-ejemplo.csv`](docs/tesis/ejemplos/telemetria-ejemplo.csv).
-Los datos de participantes reales nunca se guardan en el repositorio.
+Los datos de participantes nunca se guardan en el repositorio.
 
 ## Estructura
 
@@ -113,7 +111,7 @@ ui/            HUD y panel del investigador
 audio/         Reproducción de efectos de sonido
 tools/         Capturas guionadas, generador de sonidos y entorno de pruebas
 tests/         Pruebas automáticas por etapa
-docs/          Arquitectura y bitácora de desarrollo para la tesis
+docs/          Arquitectura e imágenes del README
 ```
 
 La regla principal de la arquitectura es que el núcleo del juego y los modos **solo emiten
@@ -124,14 +122,14 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 
 ```sh
 godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7 y smoke_sound
-godot --path . tools/capture/capture.tscn -- etapa7-alta  # regenera una captura de la bitácora
+godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
 ```
 
-## Bitácora de la tesis
+## Documentación de la tesis
 
-[`docs/tesis/bitacora.md`](docs/tesis/bitacora.md) registra cada etapa del desarrollo: qué se
-hizo, qué se decidió y por qué, cómo se verificó y con qué evidencia.
+El desarrollo se documenta en una bitácora de tesis, con decisiones, verificación y evidencia
+de cada etapa. Se mantiene fuera de este repositorio.
 
 ## Créditos
 

@@ -11,11 +11,12 @@ build/
 # Experiment data: participant telemetry never goes into git
 data/
 *.csv
-# Synthetic example produced by a bot, kept as documentation
-!docs/tesis/ejemplos/*.csv
 
 # Python (ml/)
 .venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# Thesis documentation (log, evidence screenshots, sample data) stays local, outside the repo
+docs/tesis/
