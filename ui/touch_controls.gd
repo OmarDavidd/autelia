@@ -6,7 +6,9 @@ extends CanvasLayer
 ## through Player.aim_override, so the core never knows which device is playing.
 ##
 ## Dormant until the first touch, and back to sleep when a real mouse moves: on a touch laptop
-## played with the mouse, clicking still fires and the mouse still aims.
+## played with the mouse, clicking still fires and the mouse still aims. Every touch also
+## arrives as mouse events, and the web build does not tag them as emulated, so only mouse
+## input after a quiet spell with no finger down counts as the player switching.
 
 const STICK_RADIUS := 90.0
 ## Fraction of the radius ignored around the center, so resting thumbs do nothing.
@@ -14,6 +16,8 @@ const DEAD_ZONE := 0.2
 const MOVE_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
 ## How far ahead of the player the aim point sits.
 const AIM_REACH := 120.0
+## Mouse input this soon after a touch is the touch's own echo, not a real mouse.
+const MOUSE_GRACE_MSEC := 500
 
 ## Tests and `--touch` on the command line show the controls without a touchscreen.
 static var forced := false
@@ -22,6 +26,8 @@ var pause_button: Button
 var restart_button: Button
 ## True while the player is using touch; false while dormant or using the mouse.
 var active := false
+## When a finger last touched or moved; mouse input near it is ignored.
+var last_touch_msec := -MOUSE_GRACE_MSEC
 
 var _player: Player
 var _pause_menu: PauseMenu
@@ -94,9 +100,12 @@ func _physics_process(_delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if _player == null or _player.health.is_dead():
 		return
-	# Touches also arrive as emulated mouse events; only a real mouse means the player switched.
-	if event is InputEventMouse and event.device != InputEvent.DEVICE_ID_EMULATION:
-		_set_active(false)
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		last_touch_msec = Time.get_ticks_msec()
+	elif event is InputEventMouse:
+		var finger_down: bool = _move.index != -1 or _aim.index != -1
+		if not finger_down and Time.get_ticks_msec() - last_touch_msec > MOUSE_GRACE_MSEC:
+			_set_active(false)
 		return
 	if event is InputEventScreenTouch:
 		if event.pressed:

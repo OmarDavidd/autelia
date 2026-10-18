@@ -154,11 +154,22 @@ func _sticks_move_aim_and_shoot() -> void:
 	_expect(Input.get_vector("move_left", "move_right", "move_up", "move_down") == Vector2.ZERO, "pause left the stick pressed")
 	mode.get_node("PauseMenu").resume()
 
-	# A real mouse (not one emulated from touches) hands control back to it.
-	var emulated := InputEventMouseMotion.new()
-	emulated.device = InputEvent.DEVICE_ID_EMULATION
-	controls._input(emulated)
-	_expect(controls.active, "emulated mouse motion from a touch put the controls to sleep")
+	# Every touch also arrives as mouse events. The web build tags the emulated motion with
+	# device 32, not DEVICE_ID_EMULATION, so the device cannot tell them apart: timing does.
+	_touch(controls, 0, Vector2(200, 500), true)
+	for device in [InputEvent.DEVICE_ID_EMULATION, 32, 0]:
+		var emulated := InputEventMouseMotion.new()
+		emulated.device = device
+		controls._input(emulated)
+		_expect(controls.active, "mouse motion (device %d) during a touch put the controls to sleep" % device)
+	_touch(controls, 0, Vector2(200, 500), false)
+	var right_after := InputEventMouseMotion.new()
+	right_after.device = 32
+	controls._input(right_after)
+	_expect(controls.active, "mouse motion right after lifting a finger put the controls to sleep")
+
+	# A real mouse, moved when no finger has touched for a while, hands control back to it.
+	controls.last_touch_msec -= TouchControls.MOUSE_GRACE_MSEC + 100
 	var real := InputEventMouseMotion.new()
 	real.device = 0
 	controls._input(real)

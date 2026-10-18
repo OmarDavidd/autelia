@@ -46,6 +46,15 @@ static func parse_rows(body: PackedByteArray) -> Array:
 	return rows
 
 
+## No gzip: in the web build the browser already decompresses the answer, and Godot trying
+## again fails with RESULT_BODY_DECOMPRESS_FAILED once Supabase starts compressing.
+static func make_request() -> HTTPRequest:
+	var http := HTTPRequest.new()
+	http.timeout = TIMEOUT
+	http.accept_gzip = false
+	return http
+
+
 func is_configured() -> bool:
 	return enabled and not url.is_empty() and not key.is_empty()
 
@@ -78,8 +87,7 @@ func fetch_top() -> void:
 
 ## Returns {"body": PackedByteArray} on a 2xx answer, or an empty dictionary on any failure.
 func _request(method: HTTPClient.Method, path: String, body := "", extra: Array = []) -> Dictionary:
-	var http := HTTPRequest.new()
-	http.timeout = TIMEOUT
+	var http := make_request()
 	add_child(http)
 	var request_headers := headers(key)
 	request_headers.append_array(extra)

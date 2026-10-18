@@ -119,6 +119,12 @@ func _leaderboard_requests_and_parsing() -> void:
 	_expect(Leaderboard.parse_rows("not json".to_utf8_buffer()).is_empty(), "garbage must parse to no rows")
 	_expect(Leaderboard.parse_rows('[{"name":"A"}]'.to_utf8_buffer()).is_empty(), "rows without score must be dropped")
 
+	# On the web the browser already decompresses; Godot decompressing again fails (result 8).
+	var http := Leaderboard.make_request()
+	_expect(not http.accept_gzip, "requests must not ask for gzip: the web build cannot decode it twice")
+	_expect(is_equal_approx(http.timeout, Leaderboard.TIMEOUT), "request timeout not set")
+	http.free()
+
 	var board := Leaderboard.new()
 	add_child(board)
 	var failed := [0]
