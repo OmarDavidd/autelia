@@ -31,6 +31,7 @@ var scenarios := {
 	"arcade-nombre": _arcade_name,
 	"arcade-partida": _arcade_run,
 	"arcade-fin": _arcade_game_over,
+	"menu-puntajes": _menu_scores,
 }
 
 
@@ -363,3 +364,12 @@ func _arcade_game_over() -> void:
 	await _frames(50)
 	mode.hud.show_leaderboard(SAMPLE_TOP, "Omar", 1240)
 	await _frames(5)
+
+
+func _menu_scores() -> void:
+	var main: Node = await _arcade_menu()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_scores()
+	await _frames(2)
+	menu.scores_board.show_rows(SAMPLE_TOP, "", -1)
+	await _frames(8)

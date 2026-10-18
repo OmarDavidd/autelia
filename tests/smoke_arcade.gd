@@ -33,6 +33,7 @@ func _run() -> void:
 	await _experiment_keeps_fixed_difficulty()
 	await _arcade_from_menu_to_game_over()
 	await _arcade_page_shows_the_table()
+	await _home_teases_experiment_and_shows_scores()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 
 	get_tree().paused = false
@@ -223,5 +224,25 @@ func _arcade_page_shows_the_table() -> void:
 	_expect(menu.board.status.text == "No se pudo cargar la tabla", "arcade page offline status: %s" % menu.board.status.text)
 	menu.board.show_rows([{"name": "Bo", "score": 60, "wave": 2}], "Ana", -1)
 	_expect(menu.board.rows.get_child_count() == LeaderboardTable.COLUMNS, "arcade page rows: %d" % menu.board.rows.get_child_count())
+	main.queue_free()
+	await _frames(2)
+
+
+func _home_teases_experiment_and_shows_scores() -> void:
+	var main := await _open_main()
+	var menu: MainMenu = main.get_node("MainMenu")
+	var teaser := menu.experiment_button
+	_expect(teaser.disabled, "experiment must not be clickable yet")
+	_expect(teaser.text == "Próximamente", "experiment teaser text: %s" % teaser.text)
+	_expect(teaser.focus_mode == Control.FOCUS_NONE, "keyboard focus must skip the teaser")
+	var buttons := teaser.get_parent()
+	var last_index := buttons.get_child_count() - (1 if OS.has_feature("web") else 2)
+	_expect(teaser.get_index() == last_index, "teaser must sit at the bottom, above Salir")
+	_expect(buttons.get_child(0).text == "Modos", "first home button: %s" % buttons.get_child(0).text)
+
+	menu.show_scores()
+	await _frames(2)
+	_expect(menu.scores_board.is_visible_in_tree(), "scores page does not show the table")
+	_expect(menu.scores_board.status.text == "No se pudo cargar la tabla", "scores page offline status: %s" % menu.scores_board.status.text)
 	main.queue_free()
 	await _frames(2)

@@ -1,7 +1,8 @@
 class_name MainMenu
 extends CanvasLayer
-## Main menu shown once per launch: Experimento, Modos (Arcade), Controles, Acerca de and
-## (on desktop) Salir. Arcade asks for the player's name first, next to the global top scores.
+## Main menu shown once per launch: Modos (Arcade), Puntajes, Controles, Acerca de, a disabled
+## "Próximamente" teaser for the thesis experiment and (on desktop) Salir.
+## Arcade asks for the player's name first, next to the global top scores.
 ## The game stays paused behind it. Starting a run is also what lets browsers start audio,
 ## since they block sound until the user interacts with the page.
 ## The chosen mode goes to GameSession; main.gd applies it when the menu is dismissed.
@@ -19,12 +20,14 @@ var arcade_button: Button
 var name_input: LineEdit
 var name_error: Label
 var board: LeaderboardTable
+var scores_board: LeaderboardTable
 var _leaderboard: Leaderboard
 var _home: Control
 var _modes: Control
 var _arcade: Control
 var _controls: Control
 var _about: Control
+var _scores: Control
 
 
 func _ready() -> void:
@@ -86,12 +89,18 @@ func show_controls() -> void:
 	_show(_controls)
 
 
+func show_scores() -> void:
+	_show(_scores)
+	scores_board.show_loading()
+	_leaderboard.fetch_top()
+
+
 func show_about() -> void:
 	_show(_about)
 
 
 func _show(page: Control) -> void:
-	for each in [_home, _modes, _arcade, _controls, _about]:
+	for each in [_home, _modes, _arcade, _scores, _controls, _about]:
 		each.visible = each == page
 
 
@@ -106,6 +115,10 @@ func _build() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
+	_leaderboard = Leaderboard.new()
+	add_child(_leaderboard)
+	_leaderboard.top_loaded.connect(_on_top_loaded)
+	_leaderboard.failed.connect(_on_top_failed)
 	_home = _build_home()
 	_modes = _build_modes()
 	_arcade = _build_arcade()
@@ -116,7 +129,8 @@ func _build() -> void:
 		["Reiniciar", "R al terminar la partida"],
 	])
 	_about = _build_about()
-	for page in [_home, _modes, _arcade, _controls, _about]:
+	_scores = _build_scores()
+	for page in [_home, _modes, _arcade, _scores, _controls, _about]:
 		center.add_child(page)
 
 
@@ -139,18 +153,24 @@ func _build_home() -> Control:
 	buttons.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(buttons)
 
-	experiment_button = UiStyle.button("Experimento")
-	experiment_button.pressed.connect(play_experiment)
-	buttons.add_child(experiment_button)
 	var modes := UiStyle.button("Modos")
 	modes.pressed.connect(show_modes)
 	buttons.add_child(modes)
+	var scores := UiStyle.button("Puntajes")
+	scores.pressed.connect(show_scores)
+	buttons.add_child(scores)
 	var controls := UiStyle.button("Controles")
 	controls.pressed.connect(show_controls)
 	buttons.add_child(controls)
 	var about := UiStyle.button("Acerca de")
 	about.pressed.connect(show_about)
 	buttons.add_child(about)
+	# The thesis experiment is not open to players yet: a teaser that cannot be clicked.
+	experiment_button = UiStyle.button("Próximamente")
+	experiment_button.disabled = true
+	experiment_button.focus_mode = Control.FOCUS_NONE
+	experiment_button.pressed.connect(play_experiment)
+	buttons.add_child(experiment_button)
 	# Quitting means nothing inside a browser tab.
 	if not OS.has_feature("web"):
 		var quit := UiStyle.button("Salir")
@@ -182,10 +202,6 @@ func _build_arcade() -> Control:
 	board = LeaderboardTable.new(20)
 	board.custom_minimum_size = Vector2(380, 0)
 	sides.add_child(board)
-	_leaderboard = Leaderboard.new()
-	add_child(_leaderboard)
-	_leaderboard.top_loaded.connect(func(rows: Array) -> void: board.show_rows(rows, GameSession.load_name(), -1))
-	_leaderboard.failed.connect(board.show_error)
 
 	var info := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 21)
 	info.text = "Cada oleada es más difícil. Suma puntos\ny entra en la tabla de mejores puntajes."
@@ -225,6 +241,29 @@ func _build_arcade() -> Control:
 	column.add_child(play)
 	column.add_child(_back_button())
 	return page.get_parent()
+
+
+func _build_scores() -> Control:
+	var panel := UiStyle.menu_panel(560)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 18)
+	panel.add_child(column)
+	scores_board = LeaderboardTable.new()
+	column.add_child(scores_board)
+	column.add_child(_back_button())
+	return panel
+
+
+## Both tables show the same answer; the player's last name is highlighted on neither,
+## since only a finished run knows which row is its own.
+func _on_top_loaded(rows: Array) -> void:
+	board.show_rows(rows, "", -1)
+	scores_board.show_rows(rows, "", -1)
+
+
+func _on_top_failed() -> void:
+	board.show_error()
+	scores_board.show_error()
 
 
 ## A menu panel with a big title; returns the column to fill.

@@ -36,9 +36,11 @@ objetivo de la dificultad adaptativa.
 
 ## Cómo jugar
 
-El menú principal ofrece dos formas de jugar:
+El menú principal ofrece:
 
-- **Experimento:** la partida de la tesis, con dificultad fija. Es la condición de control.
+- **Experimento:** la partida de la tesis, con dificultad fija (la condición de control). En el
+  menú aparece como **Próximamente** y todavía no se puede elegir.
+- **Puntajes:** la tabla global con los 10 mejores, sin necesidad de jugar.
 - **Modos → Arcade:** escribes un nombre (sin cuenta ni contraseña) y cada oleada es más difícil.
   Sumas 10 puntos por perseguidor, 20 por tirador y 50 × el número de oleada por cada oleada
   que sobrevives. Al morir, el puntaje se sube a una **tabla global** con los 10 mejores.

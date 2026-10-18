@@ -46,6 +46,7 @@ static func label(alignment := HORIZONTAL_ALIGNMENT_LEFT, size := TEXT_SIZE) -> 
 
 
 ## Menu button: white with an ink outline, green when hovered or focused.
+## Disabled: faded, with a soft outline, for things that are not available yet.
 static func button(text: String, width := 320.0) -> Button:
 	var result := Button.new()
 	result.text = text
@@ -55,6 +56,7 @@ static func button(text: String, width := 320.0) -> Button:
 	result.add_theme_font_size_override("font_size", 26)
 	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		result.add_theme_color_override(state, Palette.INK)
+	result.add_theme_color_override("font_disabled_color", Color(Palette.INK, 0.4))
 	var styles := {
 		"normal": Palette.WHITE,
 		"hover": Palette.PLAYER,
@@ -66,6 +68,10 @@ static func button(text: String, width := 320.0) -> Button:
 		style.set_border_width_all(4)
 		style.border_color = Palette.INK
 		result.add_theme_stylebox_override(state, style)
+	var disabled := box(Color(Palette.WHITE, 0.35), 16)
+	disabled.set_border_width_all(3)
+	disabled.border_color = Palette.INK_SOFT
+	result.add_theme_stylebox_override("disabled", disabled)
 	return result
 
 
