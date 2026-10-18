@@ -1,23 +1,20 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://core/world/arena.gd" id="1_arena"]
-[ext_resource type="PackedScene" path="res://core/player/player.tscn" id="2_player"]
-[ext_resource type="PackedScene" path="res://core/enemies/chaser.tscn" id="3_chaser"]
-[ext_resource type="PackedScene" path="res://core/enemies/shooter.tscn" id="4_shooter"]
+[ext_resource type="Script" path="res://modes/survival/survival.gd" id="1_survival"]
+[ext_resource type="Script" path="res://core/world/arena.gd" id="2_arena"]
+[ext_resource type="PackedScene" path="res://core/player/player.tscn" id="3_player"]
+[ext_resource type="Script" path="res://modes/survival/wave_spawner.gd" id="4_spawner"]
 
 [node name="Survival" type="Node2D"]
+script = ExtResource("1_survival")
 
 [node name="Arena" type="Node2D" parent="."]
-script = ExtResource("1_arena")
+script = ExtResource("2_arena")
 
-[node name="Player" parent="." instance=ExtResource("2_player")]
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
 position = Vector2(640, 360)
 
-[node name="ChaserA" parent="." instance=ExtResource("3_chaser")]
-position = Vector2(1080, 180)
-
-[node name="ChaserB" parent="." instance=ExtResource("3_chaser")]
-position = Vector2(1080, 540)
-
-[node name="ShooterA" parent="." instance=ExtResource("4_shooter")]
-position = Vector2(200, 360)
+[node name="Spawner" type="Node" parent="."]
+script = ExtResource("4_spawner")

@@ -43,6 +43,10 @@ shoot={
 "deadzone": 0.2,
 "events": [Object(InputEventMouseButton,"button_index":1)]
 }
+restart={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":82)]
+}
 screenshot={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":4194343)]
