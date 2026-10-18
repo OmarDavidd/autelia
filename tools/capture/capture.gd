@@ -15,6 +15,8 @@ var scenarios := {
 	"etapa2-disparo": _stage2_shooting,
 	"etapa3-enemigos": _stage3_enemies,
 	"etapa4-oleada": _stage4_wave,
+	"etapa5-hud": _stage5_hud,
+	"etapa5-fin": _stage5_game_over,
 }
 
 
@@ -106,3 +108,28 @@ func _stage4_wave() -> void:
 			Input.action_press("shoot")
 		await get_tree().physics_frame
 	Input.action_release("shoot")
+
+
+func _survival(seed_value: int) -> SurvivalMode:
+	var mode: SurvivalMode = load("res://modes/survival/survival.tscn").instantiate()
+	mode.run_seed = seed_value
+	stage.add_child(mode)
+	return mode
+
+
+func _stage5_hud() -> void:
+	var mode := _survival(2026)
+	Input.action_press("shoot")
+	for i in int(60 * 9.5):
+		_aim_nearest(mode.player, mode.enemies)
+		await get_tree().physics_frame
+	Input.action_release("shoot")
+
+
+func _stage5_game_over() -> void:
+	var mode := _survival(2026)
+	for i in 60 * 40:
+		if mode.player.health.is_dead():
+			break
+		await get_tree().physics_frame
+	await _frames(20)
