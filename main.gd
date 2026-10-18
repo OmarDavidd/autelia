@@ -66,6 +66,10 @@ func _apply_mode() -> void:
 ## and a camera that follows this machine's player. No leaderboard yet.
 func _apply_coop() -> void:
 	var room: CoopRoom = GameSession.coop_room
+	if room == null:
+		# Never left without a room: play alone rather than fail.
+		room = CoopRoom.create(GameSession.player_name)
+		GameSession.coop_room = room
 	var count := room.players.size()
 	survival.arena.resize(CoopRules.arena_size(count))
 	var center := survival.arena.size / 2.0

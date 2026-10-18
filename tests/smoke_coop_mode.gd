@@ -31,6 +31,7 @@ func _run() -> void:
 	await _arena_resizes()
 	await _lobby_to_a_running_coop_game()
 	await _join_reports_no_server()
+	await _coop_without_a_room_and_team_wipe()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 	GameSession.mode = GameSession.Mode.EXPERIMENT
 	GameSession.coop_room = null
@@ -163,4 +164,28 @@ func _join_reports_no_server() -> void:
 	_expect(not menu.join_room(), "joined without a server")
 	_expect(menu.coop_error.text == "No se pudo conectar al servidor", "offline join error: %s" % menu.coop_error.text)
 	main.queue_free()
+	await _frames(2)
+
+
+## A co-op start that somehow lost its room plays alone, and a full team wipe ends the run
+## with the game-over panel (co-op has no leaderboard to submit to).
+func _coop_without_a_room_and_team_wipe() -> void:
+	GameSession.mode = GameSession.Mode.COOP
+	GameSession.coop_room = null
+	MainMenu.seen = true
+	var main: Node = load("res://main.tscn").instantiate()
+	add_child(main)
+	await _frames(2)
+	var mode: SurvivalMode = main.get_node("Survival")
+	_expect(GameSession.coop_room != null and mode.players.size() == 1, "co-op without a room must still start")
+	GameSession.coop_room.add_bot()
+	var mate := mode.add_player(BotInput.new())
+	mate.take_hit(10000.0)
+	mode.player.take_hit(10000.0)
+	await _frames(50)
+	_expect(mode.is_over(), "team wipe did not end the co-op run")
+	_expect(mode.hud.game_over_panel.visible, "no game-over panel after a co-op wipe")
+	_expect(mode.hud.board.status.text == "El cooperativo todavía no tiene tabla", "co-op board note: %s" % mode.hud.board.status.text)
+	main.queue_free()
+	MainMenu.seen = false
 	await _frames(2)
