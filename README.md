@@ -18,6 +18,7 @@ See [docs/architecture.md](docs/architecture.md) for the module layout and data 
 ```sh
 godot --path .                                            # play
 godot --path . -- --seed=2026 --difficulty=0.7 --participant=P01
+godot --path . -- --mute                                  # no sound
 ```
 
 | Key | Action |
@@ -34,6 +35,7 @@ Telemetry is written to `user://telemetry/<participant>_<session>.csv`
 ## Tests and captures
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # one per stage: 1-5, 7
+godot --headless --path . tests/smoke_stage1.tscn         # one per stage: 1-5, 7, plus smoke_sound
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # thesis screenshots
+python3 tools/sfx/generate_sfx.py                         # regenerate assets/audio/*.wav
 ```
