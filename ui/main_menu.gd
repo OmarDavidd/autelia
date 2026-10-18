@@ -17,11 +17,20 @@ static var seen := false
 
 var experiment_button: Button
 var arcade_button: Button
+var daily_button: Button
+var run_title: Label
 var name_input: LineEdit
 var name_error: Label
 var board: LeaderboardTable
 var scores_board: LeaderboardTable
-var _leaderboard: Leaderboard
+var daily_board: LeaderboardTable
+## The run page serves Arcade and the daily challenge; this says which one it is showing.
+var _daily := false
+var _run_info: Label
+## Recreated on every visit, so a slow answer for the other mode can never fill the board.
+var _run_leaderboard: Leaderboard
+var _scores_leaderboard: Leaderboard
+var _daily_leaderboard: Leaderboard
 var _home: Control
 var _modes: Control
 var _arcade: Control
@@ -60,7 +69,8 @@ func start_arcade() -> bool:
 		return false
 	GameSession.player_name = player_name
 	GameSession.save_name(player_name)
-	GameSession.mode = GameSession.Mode.ARCADE
+	GameSession.mode = GameSession.Mode.DAILY if _daily else GameSession.Mode.ARCADE
+	GameSession.challenge_day = GameSession.daily_day() if _daily else ""
 	_start()
 	return true
 
@@ -70,6 +80,19 @@ func show_modes() -> void:
 
 
 func show_arcade() -> void:
+	_open_run_page(false)
+
+
+func show_daily() -> void:
+	_open_run_page(true)
+
+
+func _open_run_page(daily: bool) -> void:
+	_daily = daily
+	var today := GameSession.daily_day()
+	run_title.text = "Desafío diario %s" % GameSession.daily_label(today) if daily else "Arcade"
+	_run_info.text = "Hoy todos juegan la misma partida.\n¿Quién llega más lejos?" if daily \
+		else "Cada oleada es más difícil. Suma puntos\ny entra en la tabla de mejores puntajes."
 	name_input.text = GameSession.load_name()
 	name_error.visible = false
 	_show(_arcade)
@@ -78,7 +101,9 @@ func show_arcade() -> void:
 	if not TouchControls.wanted():
 		name_input.grab_focus.call_deferred()
 	board.show_loading()
-	_leaderboard.fetch_top()
+	if _run_leaderboard:
+		_run_leaderboard.queue_free()
+	_run_leaderboard = _fetch_into(board, today if daily else "")
 
 
 func _start() -> void:
@@ -95,7 +120,24 @@ func show_controls() -> void:
 func show_scores() -> void:
 	_show(_scores)
 	scores_board.show_loading()
-	_leaderboard.fetch_top()
+	daily_board.show_loading()
+	for old in [_scores_leaderboard, _daily_leaderboard]:
+		if old:
+			old.queue_free()
+	_scores_leaderboard = _fetch_into(scores_board, "")
+	_daily_leaderboard = _fetch_into(daily_board, GameSession.daily_day())
+
+
+## Loads one table into one board; no row is highlighted, since only a finished run knows
+## which row is its own.
+func _fetch_into(table: LeaderboardTable, day: String) -> Leaderboard:
+	var source := Leaderboard.new()
+	source.day = day
+	add_child(source)
+	source.top_loaded.connect(func(rows: Array) -> void: table.show_rows(rows, "", -1))
+	source.failed.connect(table.show_error)
+	source.fetch_top()
+	return source
 
 
 func show_about() -> void:
@@ -118,10 +160,6 @@ func _build() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
-	_leaderboard = Leaderboard.new()
-	add_child(_leaderboard)
-	_leaderboard.top_loaded.connect(_on_top_loaded)
-	_leaderboard.failed.connect(_on_top_failed)
 	_home = _build_home()
 	_modes = _build_modes()
 	_arcade = _build_arcade()
@@ -198,12 +236,17 @@ func _build_modes() -> Control:
 	arcade_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	arcade_button.pressed.connect(show_arcade)
 	column.add_child(arcade_button)
+	daily_button = UiStyle.button("Desafío diario")
+	daily_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	daily_button.pressed.connect(show_daily)
+	column.add_child(daily_button)
 	column.add_child(_back_button())
 	return column.get_parent()
 
 
 func _build_arcade() -> Control:
 	var page := _titled_panel("Arcade", 900)
+	run_title = page.get_child(0)
 	var sides := HBoxContainer.new()
 	sides.add_theme_constant_override("separation", 40)
 	page.add_child(sides)
@@ -216,10 +259,9 @@ func _build_arcade() -> Control:
 	board.custom_minimum_size = Vector2(380, 0)
 	sides.add_child(board)
 
-	var info := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 21)
-	info.text = "Cada oleada es más difícil. Suma puntos\ny entra en la tabla de mejores puntajes."
-	info.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
-	column.add_child(info)
+	_run_info = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 21)
+	_run_info.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
+	column.add_child(_run_info)
 
 	name_input = LineEdit.new()
 	name_input.placeholder_text = "Tu nombre"
@@ -257,26 +299,22 @@ func _build_arcade() -> Control:
 
 
 func _build_scores() -> Control:
-	var panel := UiStyle.menu_panel(560)
+	var panel := UiStyle.menu_panel(900)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 18)
 	panel.add_child(column)
-	scores_board = LeaderboardTable.new()
-	column.add_child(scores_board)
+	var sides := HBoxContainer.new()
+	sides.add_theme_constant_override("separation", 40)
+	sides.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_child(sides)
+	scores_board = LeaderboardTable.new(20, "Arcade")
+	scores_board.custom_minimum_size = Vector2(380, 0)
+	sides.add_child(scores_board)
+	daily_board = LeaderboardTable.new(20, "Desafío de hoy")
+	daily_board.custom_minimum_size = Vector2(380, 0)
+	sides.add_child(daily_board)
 	column.add_child(_back_button())
 	return panel
-
-
-## Both tables show the same answer; the player's last name is highlighted on neither,
-## since only a finished run knows which row is its own.
-func _on_top_loaded(rows: Array) -> void:
-	board.show_rows(rows, "", -1)
-	scores_board.show_rows(rows, "", -1)
-
-
-func _on_top_failed() -> void:
-	board.show_error()
-	scores_board.show_error()
 
 
 ## A menu panel with a big title; returns the column to fill.

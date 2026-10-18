@@ -40,7 +40,10 @@ El menú principal ofrece:
 
 - **Experimento:** la partida de la tesis, con dificultad fija (la condición de control). En el
   menú aparece como **Próximamente** y todavía no se puede elegir.
-- **Puntajes:** la tabla global con los 10 mejores, sin necesidad de jugar.
+- **Puntajes:** la tabla global de Arcade y la del desafío de hoy, sin necesidad de jugar.
+- **Modos → Desafío diario:** las reglas del Arcade, pero ese día todos juegan **la misma
+  partida** (mismos enemigos en los mismos lugares). Cambia a la medianoche de cada jugador y
+  su tabla muestra el mejor puntaje de cada nombre.
 - **Modos → Arcade:** escribes un nombre (sin cuenta ni contraseña) y cada oleada es más difícil.
   Sumas 10 puntos por perseguidor, 20 por tirador y 50 × el número de oleada por cada oleada
   que sobrevives. Al morir, el puntaje se sube a una **tabla global** con los 10 mejores.
@@ -107,8 +110,8 @@ empieza en 0,3 y sube 0,07 por oleada hasta llegar a 1.
 La tabla del modo Arcade vive en [Supabase](https://supabase.com) y el juego la consulta por
 su API REST. Para configurarla:
 
-1. Crea un proyecto en Supabase y ejecuta [`docs/leaderboard.sql`](docs/leaderboard.sql) en el
-   editor SQL.
+1. Crea un proyecto en Supabase y ejecuta [`docs/leaderboard.sql`](docs/leaderboard.sql) y
+   [`docs/daily_challenge.sql`](docs/daily_challenge.sql) en el editor SQL.
 2. Copia [`online/leaderboard.example.cfg`](online/leaderboard.example.cfg) como
    `online/leaderboard.cfg` y escribe la URL del proyecto y la clave pública (*publishable* o
    *anon*). Nunca la clave secreta. Git ignora ese archivo y la exportación web lo incluye.
@@ -157,7 +160,7 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 ## Pruebas y herramientas
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade y touch
+godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade, touch y daily
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
 ```

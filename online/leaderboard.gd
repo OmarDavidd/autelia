@@ -9,12 +9,17 @@ signal failed
 
 const TOP_SIZE := 10
 const TIMEOUT := 8.0
+## Daily rows fetched before keeping each player's best, so repeat players still leave
+## room for ten names.
+const DAILY_FETCH := 50
 
 ## Tests and scripted captures turn this off so they never reach the network.
 static var enabled := true
 
 var url := LeaderboardConfig.value("url")
 var key := LeaderboardConfig.value("key")
+## Empty for the all-time Arcade table; a "YYYY-MM-DD" day for that daily challenge.
+var day := ""
 
 
 static func headers(api_key: String) -> PackedStringArray:
@@ -25,12 +30,36 @@ static func headers(api_key: String) -> PackedStringArray:
 	return result
 
 
-static func insert_body(player_name: String, score: int, wave: int) -> String:
-	return JSON.stringify({"name": player_name, "score": score, "wave": wave})
+static func insert_body(player_name: String, score: int, wave: int, challenge_day := "") -> String:
+	var body := {"name": player_name, "score": score, "wave": wave}
+	if not challenge_day.is_empty():
+		body.day = challenge_day
+	return JSON.stringify(body)
 
 
-static func top_query() -> String:
-	return "/rest/v1/scores?select=name,score,wave&order=score.desc,created_at.asc&limit=%d" % TOP_SIZE
+static func table_path(challenge_day: String) -> String:
+	return "/rest/v1/scores" if challenge_day.is_empty() else "/rest/v1/daily_scores"
+
+
+static func top_query(challenge_day := "") -> String:
+	if challenge_day.is_empty():
+		return "/rest/v1/scores?select=name,score,wave&order=score.desc,created_at.asc&limit=%d" % TOP_SIZE
+	return "/rest/v1/daily_scores?select=name,score,wave&day=eq.%s&order=score.desc,created_at.asc&limit=%d" \
+		% [challenge_day, DAILY_FETCH]
+
+
+## Rows sorted best first; keeps each name's first (best) row, up to the top size.
+static func best_per_player(rows: Array) -> Array:
+	var seen := {}
+	var best := []
+	for row in rows:
+		if seen.has(row.name):
+			continue
+		seen[row.name] = true
+		best.append(row)
+		if best.size() == TOP_SIZE:
+			break
+	return best
 
 
 ## Keeps only well-formed rows; anything else parses to an empty list.
@@ -65,8 +94,8 @@ func submit_and_fetch(player_name: String, score: int, wave: int) -> void:
 		failed.emit.call_deferred()
 		return
 	if score > 0:
-		var sent := await _request(HTTPClient.METHOD_POST, "/rest/v1/scores",
-			insert_body(player_name, score, wave), ["Prefer: return=minimal"])
+		var sent := await _request(HTTPClient.METHOD_POST, table_path(day),
+			insert_body(player_name, score, wave, day), ["Prefer: return=minimal"])
 		if sent.is_empty():
 			failed.emit()
 			return
@@ -78,11 +107,12 @@ func fetch_top() -> void:
 	if not is_configured():
 		failed.emit.call_deferred()
 		return
-	var top := await _request(HTTPClient.METHOD_GET, top_query())
+	var top := await _request(HTTPClient.METHOD_GET, top_query(day))
 	if top.is_empty():
 		failed.emit()
 		return
-	top_loaded.emit(parse_rows(top.body))
+	var rows := parse_rows(top.body)
+	top_loaded.emit(rows if day.is_empty() else best_per_player(rows))
 
 
 ## Returns {"body": PackedByteArray} on a 2xx answer, or an empty dictionary on any failure.

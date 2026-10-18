@@ -33,6 +33,7 @@ var scenarios := {
 	"arcade-fin": _arcade_game_over,
 	"menu-puntajes": _menu_scores,
 	"arcade-tactil": _arcade_touch,
+	"desafio-nombre": _daily_name,
 }
 
 
@@ -373,6 +374,7 @@ func _menu_scores() -> void:
 	menu.show_scores()
 	await _frames(2)
 	menu.scores_board.show_rows(SAMPLE_TOP, "", -1)
+	menu.daily_board.show_rows(SAMPLE_TOP.slice(1), "", -1)
 	await _frames(8)
 
 
@@ -405,3 +407,12 @@ func _arcade_touch() -> void:
 			drag.position = pair[2]
 			controls._input(drag)
 		await get_tree().physics_frame
+
+
+func _daily_name() -> void:
+	var main: Node = await _arcade_menu()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_daily()
+	await _frames(2)
+	menu.board.show_rows(SAMPLE_TOP.slice(1), "", -1)
+	await _frames(8)

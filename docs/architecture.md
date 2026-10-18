@@ -33,10 +33,12 @@ Dependency rule: `core/` and `modes/` never import `difficulty/`, `telemetry/`, 
 `audio/`. New game modes can reuse the core without carrying any measurement code.
 
 `main.gd` is the composition root. When the main menu closes it applies the chosen mode:
-Experiment leaves the run as is; Arcade swaps in `RampController`, adds a `ScoreKeeper`,
+Experiment leaves the run as is; Arcade and the daily challenge swap in `RampController`, add a `ScoreKeeper`,
 shows the score on the HUD and submits it to the `Leaderboard` when the player dies. On
 touchscreens it also adds `TouchControls`, which feed the same input actions as the keyboard
 and aim through `Player.aim_override`, so the core never knows which device is playing.
+The daily challenge also reseeds the run from the day (`GameSession.daily_seed`) and points
+the `Leaderboard` at that day's table.
 
 ## Difficulty
 

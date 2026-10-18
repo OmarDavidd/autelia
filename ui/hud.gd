@@ -17,6 +17,8 @@ var game_over_panel: PanelContainer
 var game_over_label: Label
 var board: LeaderboardTable
 var hint_label: Label
+## Arcade game-over heading; the daily challenge names its day.
+var run_title := "Fin de la partida"
 ## Arcade game-over hint; touch controls clear it and show their own restart button.
 var restart_hint := "Presiona R para reiniciar"
 
@@ -116,7 +118,7 @@ func _on_player_died() -> void:
 func _show_game_over() -> void:
 	var wave := _mode.spawner.wave if _mode else 0
 	if _score:
-		game_over_label.text = "Fin de la partida\nPuntos: %d · Oleada alcanzada: %d" % [_score.score, wave]
+		game_over_label.text = "%s\nPuntos: %d · Oleada alcanzada: %d" % [run_title, _score.score, wave]
 		board.visible = true
 		hint_label.text = restart_hint
 		hint_label.visible = not restart_hint.is_empty()

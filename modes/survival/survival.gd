@@ -26,6 +26,13 @@ func _ready() -> void:
 	hud.bind(self)
 
 
+## Replays a chosen seed instead (the daily challenge). Only valid before anything spawns.
+func reseed(value: int) -> void:
+	used_seed = value
+	rng.seed = used_seed
+	print("Run seed: ", used_seed)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("restart") and player.health.is_dead():
 		get_tree().reload_current_scene()

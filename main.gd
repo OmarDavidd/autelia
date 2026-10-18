@@ -23,8 +23,13 @@ func _ready() -> void:
 
 
 func _apply_mode() -> void:
-	if GameSession.mode != GameSession.Mode.ARCADE:
+	if GameSession.mode == GameSession.Mode.EXPERIMENT:
 		return
+	# Arcade and the daily challenge share every rule; the challenge fixes the seed and table.
+	var day := GameSession.challenge_day if GameSession.mode == GameSession.Mode.DAILY else ""
+	if not day.is_empty():
+		survival.reseed(GameSession.daily_seed(day))
+		survival.hud.run_title = "Desafío diario %s" % GameSession.daily_label(day)
 	var director: DifficultyDirector = survival.get_node("Difficulty")
 	director.controller = RampController.new()
 	director.set_difficulty(RampController.START)
@@ -35,12 +40,14 @@ func _apply_mode() -> void:
 	survival.hud.show_score(keeper)
 
 	leaderboard = Leaderboard.new()
+	leaderboard.day = day
 	add_child(leaderboard)
 	leaderboard.top_loaded.connect(_on_top_loaded)
 	leaderboard.failed.connect(survival.hud.show_leaderboard_error)
 	Events.player_died.connect(_on_player_died)
 
 	preview = Leaderboard.new()
+	preview.day = day
 	add_child(preview)
 	preview.top_loaded.connect(_on_preview_loaded)
 	preview.failed.connect(_on_preview_failed)

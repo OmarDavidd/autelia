@@ -9,10 +9,10 @@ var status: Label
 var rows: GridContainer
 
 
-func _init(text_size := 22) -> void:
+func _init(text_size := 22, title := "Mejores puntajes") -> void:
 	add_theme_constant_override("separation", 8)
 	var heading := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, text_size + 2)
-	heading.text = "Mejores puntajes"
+	heading.text = title
 	heading.add_theme_font_override("font", UiStyle.font(700))
 	add_child(heading)
 	status = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, text_size)
