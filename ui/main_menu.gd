@@ -18,6 +18,14 @@ static var seen := false
 var experiment_button: Button
 var arcade_button: Button
 var daily_button: Button
+var coop_button: Button
+var coop_name_input: LineEdit
+var coop_code_input: LineEdit
+var coop_error: Label
+var lobby_code_label: Label
+var lobby_rows: VBoxContainer
+var start_button: Button
+var _add_bot_button: Button
 var run_title: Label
 var name_input: LineEdit
 var name_error: Label
@@ -37,6 +45,8 @@ var _arcade: Control
 var _controls: Control
 var _about: Control
 var _scores: Control
+var _coop: Control
+var _lobby: Control
 
 
 func _ready() -> void:
@@ -73,6 +83,83 @@ func start_arcade() -> bool:
 	GameSession.challenge_day = GameSession.daily_day() if _daily else ""
 	_start()
 	return true
+
+
+func show_coop() -> void:
+	coop_name_input.text = GameSession.load_name()
+	coop_code_input.text = ""
+	coop_error.visible = false
+	_show(_coop)
+
+
+## Creates a room with this player as host and opens its lobby.
+func create_room() -> bool:
+	var player_name := _coop_name()
+	if player_name.is_empty():
+		return false
+	GameSession.coop_room = CoopRoom.create(player_name)
+	GameSession.coop_room.changed.connect(_refresh_lobby)
+	_refresh_lobby()
+	_show(_lobby)
+	return true
+
+
+## Joining needs the game server, which arrives in the next stage.
+func join_room() -> bool:
+	if _coop_name().is_empty():
+		return false
+	if not CoopRoom.is_valid_code(coop_code_input.text):
+		_coop_fail("El código tiene %d letras" % CoopRoom.CODE_LENGTH)
+		return false
+	_coop_fail("No se pudo conectar al servidor")
+	return false
+
+
+func add_bot_to_room() -> void:
+	if GameSession.coop_room:
+		GameSession.coop_room.add_bot()
+
+
+func start_coop() -> void:
+	GameSession.mode = GameSession.Mode.COOP
+	_start()
+
+
+## The validated, remembered name, or "" after showing why it is not valid.
+func _coop_name() -> String:
+	var player_name := GameSession.clean_name(coop_name_input.text)
+	if not GameSession.is_valid_name(player_name):
+		_coop_fail("El nombre debe tener entre %d y %d caracteres" % [GameSession.NAME_MIN, GameSession.NAME_MAX])
+		return ""
+	GameSession.player_name = player_name
+	GameSession.save_name(player_name)
+	return player_name
+
+
+func _coop_fail(message: String) -> void:
+	coop_error.text = message
+	coop_error.visible = true
+
+
+func _refresh_lobby() -> void:
+	var room: CoopRoom = GameSession.coop_room
+	lobby_code_label.text = "Código: %s" % room.code
+	for child in lobby_rows.get_children():
+		child.free()
+	for i in room.players.size():
+		var entry: Dictionary = room.players[i]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var swatch := ColorRect.new()
+		swatch.color = Palette.PLAYER_COLORS[i]
+		swatch.custom_minimum_size = Vector2(22, 22)
+		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(swatch)
+		var label := UiStyle.label(HORIZONTAL_ALIGNMENT_LEFT, 22)
+		label.text = entry.name + (" (anfitrión)" if entry.host else " (bot)" if entry.bot else "")
+		row.add_child(label)
+		lobby_rows.add_child(row)
+	_add_bot_button.disabled = room.is_full()
 
 
 func show_modes() -> void:
@@ -145,7 +232,7 @@ func show_about() -> void:
 
 
 func _show(page: Control) -> void:
-	for each in [_home, _modes, _arcade, _scores, _controls, _about]:
+	for each in [_home, _modes, _arcade, _scores, _controls, _about, _coop, _lobby]:
 		each.visible = each == page
 
 
@@ -181,7 +268,9 @@ func _build() -> void:
 		])
 	_about = _build_about()
 	_scores = _build_scores()
-	for page in [_home, _modes, _arcade, _scores, _controls, _about]:
+	_coop = _build_coop()
+	_lobby = _build_lobby()
+	for page in [_home, _modes, _arcade, _scores, _controls, _about, _coop, _lobby]:
 		center.add_child(page)
 
 
@@ -239,7 +328,11 @@ func _build_modes() -> Control:
 	daily_button = UiStyle.button("Desafío diario")
 	daily_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	daily_button.pressed.connect(show_daily)
+	coop_button = UiStyle.button("Cooperativo")
+	coop_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	coop_button.pressed.connect(show_coop)
 	column.add_child(daily_button)
+	column.add_child(coop_button)
 	column.add_child(_back_button())
 	return column.get_parent()
 
@@ -263,23 +356,7 @@ func _build_arcade() -> Control:
 	_run_info.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
 	column.add_child(_run_info)
 
-	name_input = LineEdit.new()
-	name_input.placeholder_text = "Tu nombre"
-	name_input.max_length = GameSession.NAME_MAX
-	name_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_input.custom_minimum_size = Vector2(320, 52)
-	name_input.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	name_input.add_theme_font_override("font", UiStyle.font(600))
-	name_input.add_theme_font_size_override("font_size", 24)
-	name_input.add_theme_color_override("font_color", Palette.INK)
-	name_input.add_theme_color_override("font_placeholder_color", Color(Palette.INK, 0.4))
-	name_input.add_theme_color_override("caret_color", Palette.INK)
-	for state in ["normal", "focus"]:
-		var field := UiStyle.box(Palette.WHITE)
-		field.set_border_width_all(3)
-		field.border_color = Palette.INK
-		field.set_content_margin_all(10)
-		name_input.add_theme_stylebox_override(state, field)
+	name_input = _text_field("Tu nombre", GameSession.NAME_MAX)
 	name_input.text_submitted.connect(func(_text: String) -> void: start_arcade())
 	name_input.text_changed.connect(func(_text: String) -> void: name_error.visible = false)
 	column.add_child(name_input)
@@ -296,6 +373,93 @@ func _build_arcade() -> Control:
 	column.add_child(play)
 	column.add_child(_back_button())
 	return page.get_parent()
+
+
+func _build_coop() -> Control:
+	var column := _titled_panel("Cooperativo", 520)
+	var info := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 21)
+	info.text = "Juega con amigos: crea una sala y comparte\nel código, o entra con el código de otro."
+	info.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
+	column.add_child(info)
+	coop_name_input = _text_field("Tu nombre", GameSession.NAME_MAX)
+	coop_name_input.text_changed.connect(func(_text: String) -> void: coop_error.visible = false)
+	column.add_child(coop_name_input)
+	var create := UiStyle.button("Crear partida", 320)
+	create.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	create.pressed.connect(create_room)
+	column.add_child(create)
+
+	var join := HBoxContainer.new()
+	join.alignment = BoxContainer.ALIGNMENT_CENTER
+	join.add_theme_constant_override("separation", 12)
+	column.add_child(join)
+	coop_code_input = _text_field("Código", CoopRoom.CODE_LENGTH)
+	coop_code_input.custom_minimum_size = Vector2(150, 52)
+	coop_code_input.text_changed.connect(func(_text: String) -> void: coop_error.visible = false)
+	coop_code_input.text_submitted.connect(func(_text: String) -> void: join_room())
+	join.add_child(coop_code_input)
+	var join_button := UiStyle.button("Unirse", 158)
+	join_button.pressed.connect(join_room)
+	join.add_child(join_button)
+
+	coop_error = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 20)
+	coop_error.add_theme_color_override("font_color", Palette.ENEMY.darkened(0.3))
+	coop_error.visible = false
+	column.add_child(coop_error)
+	column.add_child(_back_button())
+	return column.get_parent()
+
+
+func _build_lobby() -> Control:
+	var column := _titled_panel("Sala", 520)
+	lobby_code_label = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 34)
+	lobby_code_label.add_theme_font_override("font", UiStyle.font(700))
+	column.add_child(lobby_code_label)
+	var hint := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 20)
+	hint.text = "Comparte el código para que se unan."
+	hint.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
+	column.add_child(hint)
+	lobby_rows = VBoxContainer.new()
+	lobby_rows.add_theme_constant_override("separation", 6)
+	lobby_rows.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	column.add_child(lobby_rows)
+	_add_bot_button = UiStyle.button("Agregar bot", 320)
+	_add_bot_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_add_bot_button.pressed.connect(add_bot_to_room)
+	column.add_child(_add_bot_button)
+	start_button = UiStyle.button("Empezar", 320)
+	start_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	start_button.pressed.connect(start_coop)
+	column.add_child(start_button)
+	var leave := UiStyle.button("Salir de la sala", 320)
+	leave.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	leave.pressed.connect(func() -> void:
+		GameSession.coop_room = null
+		show_coop())
+	column.add_child(leave)
+	return column.get_parent()
+
+
+## A white outlined text box, centered text, shared by every field in the menu.
+func _text_field(placeholder: String, max_length: int) -> LineEdit:
+	var field := LineEdit.new()
+	field.placeholder_text = placeholder
+	field.max_length = max_length
+	field.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	field.custom_minimum_size = Vector2(320, 52)
+	field.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	field.add_theme_font_override("font", UiStyle.font(600))
+	field.add_theme_font_size_override("font_size", 24)
+	field.add_theme_color_override("font_color", Palette.INK)
+	field.add_theme_color_override("font_placeholder_color", Color(Palette.INK, 0.4))
+	field.add_theme_color_override("caret_color", Palette.INK)
+	for state in ["normal", "focus"]:
+		var box := UiStyle.box(Palette.WHITE)
+		box.set_border_width_all(3)
+		box.border_color = Palette.INK
+		box.set_content_margin_all(10)
+		field.add_theme_stylebox_override(state, box)
+	return field
 
 
 func _build_scores() -> Control:

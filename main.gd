@@ -9,6 +9,9 @@ var leaderboard: Leaderboard
 ## Loads the table at the start, for the next place to beat. A separate instance so a
 ## slow answer arriving after death is told apart from the final table and dropped.
 var preview: Leaderboard
+## Co-op only: the camera that follows this machine's player and the teammate markers.
+var camera: FollowCamera
+var markers: TeammateMarkers
 
 @onready var survival: SurvivalMode = $Survival
 
@@ -24,6 +27,9 @@ func _ready() -> void:
 
 func _apply_mode() -> void:
 	if GameSession.mode == GameSession.Mode.EXPERIMENT:
+		return
+	if GameSession.mode == GameSession.Mode.COOP:
+		_apply_coop()
 		return
 	# Arcade and the daily challenge share every rule; the challenge fixes the seed and table.
 	var day := GameSession.challenge_day if GameSession.mode == GameSession.Mode.DAILY else ""
@@ -48,6 +54,44 @@ func _apply_mode() -> void:
 		survival.hud.board.show_note("Partida con bots: no entra en la tabla")
 	else:
 		_connect_leaderboard(day)
+
+	if TouchControls.wanted():
+		var touch := TouchControls.new()
+		touch.name = "TouchControls"
+		add_child(touch)
+		touch.bind(survival)
+
+
+## Co-op: an arena and an enemy crowd sized for the room, everybody starting in the middle,
+## and a camera that follows this machine's player. No leaderboard yet.
+func _apply_coop() -> void:
+	var room: CoopRoom = GameSession.coop_room
+	var count := room.players.size()
+	survival.arena.resize(CoopRules.arena_size(count))
+	var center := survival.arena.size / 2.0
+	survival.player.global_position = center
+	survival.spawner.crowd = CoopRules.crowd(count)
+	var director: DifficultyDirector = survival.get_node("Difficulty")
+	director.controller = RampController.new()
+	director.set_difficulty(RampController.START)
+
+	var keeper := ScoreKeeper.new()
+	keeper.name = "Score"
+	survival.add_child(keeper)
+	survival.hud.show_score(keeper)
+	survival.hud.board.show_note("El cooperativo todavía no tiene tabla")
+	for entry in room.players.slice(1):
+		if entry.bot:
+			survival.add_player(BotInput.new(center))
+
+	survival.get_node("Camera").enabled = false
+	camera = FollowCamera.new()
+	survival.add_child(camera)
+	camera.follow(survival.player, Rect2(Vector2.ZERO, survival.arena.size))
+	camera.make_current()
+	markers = TeammateMarkers.new()
+	add_child(markers)
+	markers.bind(survival)
 
 	if TouchControls.wanted():
 		var touch := TouchControls.new()

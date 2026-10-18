@@ -6,11 +6,17 @@ extends PlayerInput
 
 const KEEP_AWAY := 220.0
 const PERSONAL_SPACE := 90.0
-const ARENA_CENTER := Vector2(640, 360)
+
+## Where the bot drifts back to: the middle of its arena.
+var home := Vector2(640, 360)
+
+
+func _init(center := Vector2(640, 360)) -> void:
+	home = center
 
 
 func move_vector(player: Player) -> Vector2:
-	var push := (ARENA_CENTER - player.global_position) * 0.004
+	var push := (home - player.global_position) * 0.004
 	for enemy in player.get_tree().get_nodes_in_group("enemies"):
 		var away: Vector2 = player.global_position - enemy.global_position
 		if away.length() < KEEP_AWAY:

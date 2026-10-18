@@ -24,6 +24,9 @@ var speed_multiplier := 1.0
 var fire_rate_multiplier := 1.0
 var health_multiplier := 1.0
 
+## Co-op: more players, more enemies. Divides the spawn interval and multiplies the cap.
+var crowd := 1.0
+
 var wave := 0
 var running := false
 
@@ -80,8 +83,8 @@ func _physics_process(delta: float) -> void:
 
 	_spawn_timer -= delta
 	if _spawn_timer <= 0.0:
-		_spawn_timer += spawn_interval
-		if alive_count() < max_alive:
+		_spawn_timer += spawn_interval / crowd
+		if alive_count() < roundi(max_alive * crowd):
 			_spawn_one()
 	if _time_left <= 0.0:
 		_end_wave()

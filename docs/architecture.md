@@ -52,6 +52,12 @@ nearest living player and spawn away from every living player. When a player fal
 `Events.player_died` keeps its meaning of "the run is over": it fires only when nobody is
 left standing, so single-player code and tests are unchanged.
 
+The Cooperativo mode (`modes/coop/`) starts from a `CoopRoom` (invite code and roster, up to
+eight). `CoopRules` sizes the arena (`Arena.resize`) and the enemy crowd (`WaveSpawner.crowd`)
+by the number of players. A `FollowCamera` keeps this machine's player centered within the
+arena, and `TeammateMarkers` point to teammates off screen. Rooms are local for now; the game
+server will own them.
+
 ## Difficulty
 
 One value `d` in [0, 1] maps linearly to spawn interval, enemy speed, shooter fire rate and

@@ -7,10 +7,13 @@ extends Node2D
 ## The seed actually used is printed and kept in `used_seed` so any run can be replayed.
 
 const PLAYER_SCENE := preload("res://core/player/player.tscn")
-const MAX_PLAYERS := 4
+const MAX_PLAYERS := 8
 const REVIVE_HEALTH := 0.5
 ## Where teammates appear, around the first player.
-const TEAMMATE_OFFSETS: Array[Vector2] = [Vector2.ZERO, Vector2(60, 0), Vector2(-60, 0), Vector2(0, 60)]
+const TEAMMATE_OFFSETS: Array[Vector2] = [
+	Vector2.ZERO, Vector2(60, 0), Vector2(-60, 0), Vector2(0, 60),
+	Vector2(0, -60), Vector2(60, 60), Vector2(-60, 60), Vector2(60, -60),
+]
 
 @export var run_seed := 0
 

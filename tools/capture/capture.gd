@@ -35,6 +35,8 @@ var scenarios := {
 	"arcade-tactil": _arcade_touch,
 	"desafio-nombre": _daily_name,
 	"coop-bots": _coop_bots,
+	"coop-sala": _coop_lobby,
+	"coop-partida": _coop_run,
 }
 
 
@@ -434,3 +436,34 @@ func _coop_bots() -> void:
 	mode.player.health.invulnerable_left = 0.0
 	mode.player.take_hit(10000.0)
 	await _frames(40)
+
+
+func _coop_lobby() -> void:
+	var main: Node = await _arcade_menu()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_coop()
+	menu.create_room()
+	for i in 3:
+		menu.add_bot_to_room()
+	await _frames(8)
+
+
+## A co-op run with five bots on the bigger arena, the local player auto-aiming.
+func _coop_run() -> void:
+	var main: Node = await _arcade_menu()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_coop()
+	menu.create_room()
+	for i in 5:
+		menu.add_bot_to_room()
+	menu.start_coop()
+	await _frames(2)
+	var mode: SurvivalMode = main.get_node("Survival")
+	for each in mode.players:
+		each.health.invulnerable_left = 999.0
+	Input.action_press("shoot")
+	for i in int(60 * 10.0):
+		_aim_nearest(mode.player, mode.enemies)
+		Input.action_press("move_left") if i < 90 else Input.action_release("move_left")
+		await get_tree().physics_frame
+	Input.action_release("shoot")

@@ -102,12 +102,12 @@ func _players_get_colors_and_enemies_chase_the_nearest() -> void:
 	var mode := _make_run()
 	await _frames(1)
 	var colors := {mode.player.color: true}
-	for i in 3:
+	for i in SurvivalMode.MAX_PLAYERS - 1:
 		var extra := mode.add_player(ScriptedInput.new())
 		colors[extra.color] = true
-	_expect(mode.players.size() == 4, "up to four players must fit, got %d" % mode.players.size())
-	_expect(colors.size() == 4, "each player needs its own color")
-	_expect(mode.add_player(ScriptedInput.new()) == null and mode.players.size() == 4, "a fifth player must be refused")
+	_expect(mode.players.size() == 8, "up to eight players must fit, got %d" % mode.players.size())
+	_expect(colors.size() == 8, "each player needs its own color")
+	_expect(mode.add_player(ScriptedInput.new()) == null and mode.players.size() == 8, "a ninth player must be refused")
 	_expect(mode.player.color == Palette.PLAYER, "the first player keeps the classic green")
 	await _free(mode)
 

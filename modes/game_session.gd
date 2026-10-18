@@ -5,7 +5,7 @@ extends RefCounted
 ## Static, so it survives scene reloads (R and Reiniciar keep the same mode).
 ## The name is also saved to disk so the next launch suggests it.
 
-enum Mode { EXPERIMENT, ARCADE, DAILY }
+enum Mode { EXPERIMENT, ARCADE, DAILY, COOP }
 
 const NAME_MIN := 3
 const NAME_MAX := 16
@@ -15,6 +15,8 @@ static var player_name := ""
 ## The daily challenge being played, as "YYYY-MM-DD". Kept across restarts, so a run that
 ## crosses midnight replays the same challenge.
 static var challenge_day := ""
+## The co-op room being played; kept across restarts like the other choices.
+static var coop_room: CoopRoom
 ## Tests set this; otherwise `--bots=N` on the command line decides (development only).
 static var bots_override := -1
 ## Tests point this elsewhere so they never overwrite the player's saved name.
@@ -45,7 +47,7 @@ static func bot_count() -> int:
 		return bots_override
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--bots="):
-			return clampi(int(arg.get_slice("=", 1)), 0, SurvivalMode.MAX_PLAYERS - 1)
+			return clampi(int(arg.get_slice("=", 1)), 0, 3)
 	return 0
 
 

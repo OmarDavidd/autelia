@@ -1,6 +1,6 @@
 class_name Arena
 extends Node2D
-## Single fixed-camera arena: a floor plus four walls built from `size`.
+## Arena: a floor plus four walls built from `size`. Co-op resizes it to fit its players.
 
 @export var size := Vector2(1280, 720)
 @export var margin := 24.0
@@ -9,6 +9,17 @@ extends Node2D
 
 func _ready() -> void:
 	_build_walls()
+
+
+## Rebuilds the walls for a new size. Only before a run starts: nothing is moved for you.
+func resize(new_size: Vector2) -> void:
+	size = new_size
+	var old := get_node_or_null("Walls")
+	if old:
+		remove_child(old)
+		old.free()
+	_build_walls()
+	queue_redraw()
 
 
 ## Playable area in arena coordinates.
