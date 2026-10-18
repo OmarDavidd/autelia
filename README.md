@@ -51,13 +51,14 @@ El menú principal ofrece:
 | Mouse + clic izquierdo | Apuntar y disparar |
 | Esc o P | Pausa |
 | R | Reiniciar al morir |
-
-En celulares y tabletas, el modo Arcade muestra **controles táctiles**: un joystick a la
-izquierda para moverse y otro a la derecha que apunta y dispara mientras lo mantienes, más
-botones de pausa y de reinicio. Se juega con el teléfono en horizontal. El Experimento sigue
-siendo para computadora con teclado y mouse.
 | F3 | Panel del investigador |
 | F12 | Guardar una captura de pantalla |
+
+En celulares y tabletas, el modo Arcade muestra **controles táctiles** al tocar la pantalla:
+un joystick a la izquierda para moverse y otro a la derecha que apunta y dispara mientras lo
+mantienes, más botones de pausa y de reinicio. Se juega con el teléfono en horizontal. En una
+notebook táctil, el mouse sigue funcionando hasta que tocas la pantalla. El Experimento sigue
+siendo para computadora con teclado y mouse.
 
 ## Ejecutar
 
