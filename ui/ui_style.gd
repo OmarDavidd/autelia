@@ -43,3 +43,37 @@ static func label(alignment := HORIZONTAL_ALIGNMENT_LEFT, size := TEXT_SIZE) -> 
 	result.add_theme_color_override("font_color", Palette.INK)
 	result.add_theme_font_size_override("font_size", size)
 	return result
+
+
+## Menu button: white with an ink outline, green when hovered or focused.
+static func button(text: String, width := 320.0) -> Button:
+	var result := Button.new()
+	result.text = text
+	result.custom_minimum_size = Vector2(width, 56)
+	result.focus_mode = Control.FOCUS_ALL
+	result.add_theme_font_override("font", font(600))
+	result.add_theme_font_size_override("font_size", 26)
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		result.add_theme_color_override(state, Palette.INK)
+	var styles := {
+		"normal": Palette.WHITE,
+		"hover": Palette.PLAYER,
+		"pressed": Palette.PLAYER.darkened(0.15),
+		"focus": Palette.PLAYER,
+	}
+	for state: String in styles:
+		var style := box(styles[state], 16)
+		style.set_border_width_all(4)
+		style.border_color = Palette.INK
+		result.add_theme_stylebox_override(state, style)
+	return result
+
+
+## Centered, outlined panel for menus (pause, about, controls).
+static func menu_panel(min_width := 520.0) -> PanelContainer:
+	var result := PanelContainer.new()
+	result.custom_minimum_size = Vector2(min_width, 0)
+	var style := panel_box()
+	style.set_content_margin_all(36)
+	result.add_theme_stylebox_override("panel", style)
+	return result

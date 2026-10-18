@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://difficulty/difficulty_director.gd" id="6_director"]
 [ext_resource type="Script" path="res://telemetry/telemetry_recorder.gd" id="7_telemetry"]
 [ext_resource type="Script" path="res://ui/debug_panel.gd" id="8_debug"]
+[ext_resource type="Script" path="res://ui/pause_menu.gd" id="9_pause"]
 
 [node name="Survival" type="Node2D"]
 script = ExtResource("1_survival")
@@ -44,3 +45,7 @@ script = ExtResource("8_debug")
 mode_path = NodePath("..")
 director_path = NodePath("../Difficulty")
 telemetry_path = NodePath("../Telemetry")
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("9_pause")
+mode_path = NodePath("..")

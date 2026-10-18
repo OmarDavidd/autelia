@@ -1,12 +1,13 @@
 extends Node
-## Game-feel smoke test: death bursts, player death animation, delayed game over, start screen.
+## Game-feel smoke test: death bursts, player death animation, delayed game over, main menu, pause.
 ## Run: godot --headless --path . tests/smoke_feel.tscn
 
 var failures: Array[String] = []
 
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Keep the default (pausable) process mode: scenes added here inherit it, and the
+	# pause test needs them to stop when the tree pauses.
 	_run.call_deferred()
 
 
@@ -32,11 +33,12 @@ func _run() -> void:
 	await _enemy_death_bursts_and_cleans_up()
 	await _player_death_animates()
 	await _game_over_waits_for_animation()
-	await _start_screen_pauses_until_input()
+	await _main_menu_pauses_until_play()
+	await _pause_freezes_the_run()
 
 	get_tree().paused = false
 	if failures.is_empty():
-		print("SMOKE OK: bursts, death animation, delayed game over and start screen behave")
+		print("SMOKE OK: bursts, death animation, delayed game over, main menu and pause behave")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -82,23 +84,23 @@ func _game_over_waits_for_animation() -> void:
 	await _frames(2)
 
 
-func _start_screen_pauses_until_input() -> void:
-	StartScreen.seen = false
+func _main_menu_pauses_until_play() -> void:
+	MainMenu.seen = false
 	var main: Node = load("res://main.tscn").instantiate()
 	add_child(main)
 	await _frames(2)
-	var screen: StartScreen = main.get_node_or_null("StartScreen")
-	_expect(screen != null, "start screen missing on first load")
-	_expect(get_tree().paused, "game not paused behind the start screen")
-
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_LEFT
-	click.pressed = true
-	if screen:
-		screen._unhandled_input(click)
+	var menu: MainMenu = main.get_node_or_null("MainMenu")
+	_expect(menu != null, "main menu missing on first load")
+	_expect(get_tree().paused, "game not paused behind the main menu")
+	if menu:
+		menu.show_about()
+		_expect(not menu.play_button.is_visible_in_tree(), "home still visible on the about page")
+		menu._show(menu._home)
+		_expect(menu.play_button.is_visible_in_tree(), "back did not return to the home page")
+		menu.play_button.pressed.emit()
 	await _frames(2)
-	_expect(not get_tree().paused, "game still paused after clicking")
-	_expect(StartScreen.seen, "start screen not marked as seen")
+	_expect(not get_tree().paused, "game still paused after pressing Jugar")
+	_expect(MainMenu.seen, "main menu not marked as seen")
 	main.queue_free()
 	await _frames(2)
 
@@ -106,7 +108,33 @@ func _start_screen_pauses_until_input() -> void:
 	var again: Node = load("res://main.tscn").instantiate()
 	add_child(again)
 	await _frames(2)
-	_expect(again.get_node_or_null("StartScreen") == null, "start screen shown again after reload")
+	_expect(again.get_node_or_null("MainMenu") == null, "main menu shown again after reload")
 	_expect(not get_tree().paused, "reload left the game paused")
 	again.queue_free()
+	await _frames(2)
+
+
+func _pause_freezes_the_run() -> void:
+	var mode: SurvivalMode = load("res://modes/survival/survival.tscn").instantiate()
+	add_child(mode)
+	await _frames(5)
+	var pause: PauseMenu = mode.get_node("PauseMenu")
+	var key := InputEventAction.new()
+	key.action = "pause"
+	key.pressed = true
+	pause._unhandled_input(key)
+	_expect(get_tree().paused and pause.visible, "pause key did not pause")
+	var frozen := mode.spawner.time_left()
+	await _frames(30)
+	_expect(is_equal_approx(mode.spawner.time_left(), frozen), "wave timer advanced while paused")
+	pause.resume_button.pressed.emit()
+	_expect(not get_tree().paused and not pause.visible, "Continuar did not resume")
+	await _frames(30)
+	_expect(mode.spawner.time_left() < frozen, "wave timer did not resume")
+
+	mode.player.take_hit(1000.0)
+	await _frames(2)
+	pause.toggle()
+	_expect(not get_tree().paused, "could pause during game over")
+	mode.queue_free()
 	await _frames(2)
