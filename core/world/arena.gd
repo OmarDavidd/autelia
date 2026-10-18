@@ -42,5 +42,18 @@ func _build_walls() -> void:
 
 func _draw() -> void:
 	var rect := play_rect()
-	draw_rect(rect, Palette.FLOOR)
-	draw_rect(rect, Palette.INK, false, Palette.OUTLINE_WIDTH)
+	var floor_box := StyleBoxFlat.new()
+	floor_box.bg_color = Palette.FLOOR
+	floor_box.border_color = Palette.INK
+	floor_box.set_border_width_all(5)
+	floor_box.set_corner_radius_all(24)
+	floor_box.anti_aliasing = true
+	draw_style_box(floor_box, rect.grow(5.0))
+	var dot := Color(Palette.INK, 0.08)
+	var y := rect.position.y + 20.0
+	while y < rect.end.y:
+		var x := rect.position.x + 20.0
+		while x < rect.end.x:
+			draw_circle(Vector2(x, y), 2.5, dot)
+			x += 40.0
+		y += 40.0

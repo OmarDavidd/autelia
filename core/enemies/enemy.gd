@@ -46,7 +46,18 @@ func take_hit(damage: float, _source: Node = null) -> void:
 
 
 func fill_color(base: Color) -> Color:
-	return Color.WHITE if flash > 0.0 else base
+	return Palette.WHITE if flash > 0.0 else base
+
+
+## Brief swell when hit, as visual feedback.
+func pop_scale() -> float:
+	return 1.0 + flash * 2.0
+
+
+func look_direction() -> Vector2:
+	if is_instance_valid(target):
+		return global_position.direction_to(target.global_position)
+	return Vector2.DOWN
 
 
 func _apply_contact_damage() -> void:

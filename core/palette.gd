@@ -1,10 +1,13 @@
 class_name Palette
-## Placeholder palette. The real style guide replaces these values in the visual pass.
+## Style guide "Juguete pastel" (direction A) with hatched shadows and bullet trails from direction B.
 
-const BACKGROUND := Color("f3f5f1")
-const FLOOR := Color("e9efe7")
-const INK := Color("15201a")
-const PLAYER := Color("38d98a")
-const ENEMY := Color("ef6f5e")
-const SHOOTER := Color("f2a541")
-const OUTLINE_WIDTH := 3.0
+const BACKGROUND := Color("eaf6ee")
+const FLOOR := Color("f7fbf8")
+const INK := Color("2b2340")
+const INK_SOFT := Color(0.169, 0.137, 0.251, 0.55)
+const PLAYER := Color("3ddc97")
+const ENEMY := Color("ff6b8b")
+const SHOOTER := Color("ffb547")
+const WHITE := Color("ffffff")
+const OUTLINE_WIDTH := 4.0
+const ART_RADIUS := 18.0

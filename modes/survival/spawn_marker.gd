@@ -21,4 +21,9 @@ func _physics_process(delta: float) -> void:
 
 func _draw() -> void:
 	var t := clampf(_elapsed / duration, 0.0, 1.0)
-	draw_arc(Vector2.ZERO, lerpf(34.0, 14.0, t), 0.0, TAU, 32, Palette.ENEMY, 2.0, true)
+	var radius := lerpf(30.0, 16.0, t)
+	var dashes := 10
+	for i in dashes:
+		var from := TAU * i / dashes + t * PI
+		draw_arc(Vector2.ZERO, radius, from, from + TAU / dashes * 0.55, 6, Palette.ENEMY, 3.0, true)
+	draw_circle(Vector2.ZERO, 6.0, Color(Palette.ENEMY, 0.5))

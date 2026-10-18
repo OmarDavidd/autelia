@@ -25,7 +25,7 @@ max_health = 40.0
 [node name="Pivot" type="Node2D" parent="."]
 
 [node name="Weapon" type="Node2D" parent="Pivot"]
-position = Vector2(24, 0)
+position = Vector2(30, 0)
 script = ExtResource("3_weapon")
 team = 1
 fire_rate = 1.2

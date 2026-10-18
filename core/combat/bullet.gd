@@ -10,6 +10,8 @@ extends Area2D
 var direction := Vector2.RIGHT
 var source: Node
 var color := Palette.INK
+## Enemy bullets get an ink outline so they read against any floor.
+var outlined := false
 
 
 func _ready() -> void:
@@ -31,4 +33,7 @@ func _on_body_entered(body: Node) -> void:
 
 
 func _draw() -> void:
+	Sketch.motion_lines(self, direction, radius)
 	draw_circle(Vector2.ZERO, radius, color)
+	if outlined:
+		draw_arc(Vector2.ZERO, radius, 0.0, TAU, 20, Palette.INK, 2.5, true)

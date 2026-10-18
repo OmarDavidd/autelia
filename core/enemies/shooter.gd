@@ -34,10 +34,14 @@ func desired_velocity(delta: float) -> Vector2:
 
 
 func _draw() -> void:
-	var r := radius
-	var shape := PackedVector2Array([Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0)])
-	var barrel_end := Vector2.RIGHT.rotated(pivot.rotation) * (r + 8.0)
-	draw_line(Vector2.ZERO, barrel_end, Palette.INK, 6.0)
-	draw_colored_polygon(shape, fill_color(Palette.SHOOTER))
-	shape.append(shape[0])
-	draw_polyline(shape, Palette.INK, Palette.OUTLINE_WIDTH, true)
+	var r := Palette.ART_RADIUS
+	Sketch.hatch_shadow(self, Vector2(0.0, r + 8.0), r)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * pop_scale())
+	var aim := Vector2.RIGHT.rotated(pivot.rotation)
+	Sketch.capsule(self, aim * (r - 4.0), aim * (r + 12.0), 9.0, Palette.INK)
+	draw_set_transform(Vector2.ZERO)
+	Sketch.rounded_diamond(self, r * 0.82 * pop_scale(), fill_color(Palette.SHOOTER))
+	# One big eye that follows the player.
+	draw_circle(Vector2.ZERO, 7.5, Palette.WHITE)
+	draw_arc(Vector2.ZERO, 7.5, 0.0, TAU, 24, Palette.INK, 2.5, true)
+	draw_circle(look_direction() * 2.5, 3.0, Palette.INK)

@@ -7,8 +7,8 @@ enum Team { PLAYER, ENEMY }
 const BULLET_SCENE := preload("res://core/combat/bullet.tscn")
 # Physics layer bits: 1 world, 2 player, 4 enemies, 8 player bullets, 16 enemy bullets.
 const TEAM_LAYERS := {
-	Team.PLAYER: {"layer": 8, "mask": 1 | 4, "color": Palette.INK},
-	Team.ENEMY: {"layer": 16, "mask": 1 | 2, "color": Palette.ENEMY},
+	Team.PLAYER: {"layer": 8, "mask": 1 | 4, "color": Palette.INK, "outlined": false},
+	Team.ENEMY: {"layer": 16, "mask": 1 | 2, "color": Palette.ENEMY, "outlined": true},
 }
 
 @export var team := Team.PLAYER
@@ -40,6 +40,7 @@ func try_fire() -> bool:
 	bullet.damage = damage
 	bullet.source = owner
 	bullet.color = settings.color
+	bullet.outlined = settings.outlined
 	bullet.collision_layer = settings.layer
 	bullet.collision_mask = settings.mask
 

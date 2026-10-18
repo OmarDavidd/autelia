@@ -4,7 +4,8 @@ extends CanvasLayer
 ## Updates from Events and the mode's public getters; it never changes game state.
 ## Copy is in Spanish because the players are Spanish speakers.
 
-const TEXT_SIZE := 22
+const TEXT_SIZE := 26
+const FONT := preload("res://assets/fonts/Fredoka.ttf")
 
 var health_bar: ProgressBar
 var wave_label: Label
@@ -59,6 +60,10 @@ func _on_player_died() -> void:
 
 func _build() -> void:
 	var root := MarginContainer.new()
+	var theme := Theme.new()
+	theme.default_font = _font_weight(600)
+	theme.default_font_size = TEXT_SIZE
+	root.theme = theme
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for side in ["left", "right", "top", "bottom"]:
@@ -71,11 +76,14 @@ func _build() -> void:
 	root.add_child(top)
 
 	health_bar = ProgressBar.new()
-	health_bar.custom_minimum_size = Vector2(220, 18)
+	health_bar.custom_minimum_size = Vector2(240, 22)
 	health_bar.show_percentage = false
 	health_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	health_bar.add_theme_stylebox_override("background", _box(Color(Palette.INK, 0.12)))
-	health_bar.add_theme_stylebox_override("fill", _box(Palette.PLAYER))
+	var fill := _box(Palette.PLAYER)
+	fill.set_border_width_all(3)
+	fill.border_color = Palette.INK
+	health_bar.add_theme_stylebox_override("fill", fill)
 	top.add_child(health_bar)
 
 	wave_label = _label(HORIZONTAL_ALIGNMENT_CENTER)
@@ -83,7 +91,8 @@ func _build() -> void:
 	top.add_child(wave_label)
 
 	kills_label = _label(HORIZONTAL_ALIGNMENT_RIGHT)
-	kills_label.custom_minimum_size = Vector2(220, 0)
+	kills_label.custom_minimum_size = Vector2(240, 0)
+	kills_label.add_theme_font_override("font", _font_weight(500))
 	kills_label.text = "Eliminaciones: 0"
 	top.add_child(kills_label)
 
@@ -91,7 +100,8 @@ func _build() -> void:
 	game_over_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	game_over_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var panel_box := _box(Color(Palette.BACKGROUND, 0.95))
-	panel_box.set_border_width_all(3)
+	panel_box.set_border_width_all(4)
+	panel_box.set_corner_radius_all(20)
 	panel_box.border_color = Palette.INK
 	panel_box.set_content_margin_all(32)
 	game_over_panel.add_theme_stylebox_override("panel", panel_box)
@@ -113,5 +123,15 @@ func _label(alignment: HorizontalAlignment) -> Label:
 func _box(color: Color) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = color
-	box.set_corner_radius_all(9)
+	box.set_corner_radius_all(11)
+	box.anti_aliasing = true
 	return box
+
+
+## Fredoka is a variable font; this picks one weight from it.
+func _font_weight(weight: int) -> FontVariation:
+	var font := FontVariation.new()
+	font.base_font = FONT
+	var wght := TextServerManager.get_primary_interface().name_to_tag("wght")
+	font.variation_opentype = {wght: weight}
+	return font

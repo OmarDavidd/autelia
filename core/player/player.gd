@@ -11,7 +11,9 @@ const RADIUS := 16.0
 ## When finite, the player aims here instead of at the mouse (scripted captures, bots).
 var aim_override := Vector2.INF
 
+## Invisible aim pivot: rotates toward the aim and carries the weapon.
 @onready var body: Node2D = $Body
+@onready var look: Node2D = $Look
 @onready var weapon: Weapon = $Body/Weapon
 @onready var health: Health = $Health
 
@@ -30,12 +32,13 @@ func _physics_process(delta: float) -> void:
 
 	var aim_at := aim_override if aim_override.is_finite() else get_global_mouse_position()
 	body.rotation = (aim_at - global_position).angle()
+	look.set_aim(Vector2.RIGHT.rotated(body.rotation))
 	if Input.is_action_pressed("shoot"):
 		weapon.try_fire()
 
 	# Blink while invulnerable so the player can read the grace period.
 	var blinking := health.is_invulnerable() and int(health.invulnerable_left * 20.0) % 2 == 0
-	body.modulate.a = 0.35 if blinking else 1.0
+	look.modulate.a = 0.35 if blinking else 1.0
 
 
 func take_hit(damage: float, _source: Node = null) -> void:
@@ -50,4 +53,4 @@ func _on_died() -> void:
 	Events.player_died.emit()
 	set_physics_process(false)
 	velocity = Vector2.ZERO
-	body.modulate.a = 0.35
+	look.modulate.a = 0.35

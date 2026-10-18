@@ -38,11 +38,13 @@ func _on_died() -> void:
 
 
 func _draw() -> void:
+	var r := Palette.ART_RADIUS
 	if health.is_dead():
-		draw_arc(Vector2.ZERO, radius, 0.0, TAU, 32, Palette.INK, 1.5, true)
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, 32, Palette.INK_SOFT, 2.0, true)
 		return
-	var fill := Color.WHITE if _flash > 0.0 else Palette.ENEMY
-	draw_circle(Vector2.ZERO, radius, fill)
-	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 32, Palette.INK, Palette.OUTLINE_WIDTH, true)
+	Sketch.hatch_shadow(self, Vector2(0.0, r + 6.0), r - 2.0)
+	Sketch.blob(self, Vector2.ZERO, r, Palette.WHITE if _flash > 0.0 else Palette.ENEMY)
+	draw_circle(Vector2.ZERO, 6.0, Palette.WHITE)
+	draw_arc(Vector2.ZERO, 6.0, 0.0, TAU, 20, Palette.INK, 2.5, true)
 	var ratio := health.current / health.max_health
-	draw_arc(Vector2.ZERO, radius + 7.0, -PI / 2.0, -PI / 2.0 + TAU * ratio, 32, Palette.INK, 2.0, true)
+	draw_arc(Vector2.ZERO, r + 8.0, -PI / 2.0, -PI / 2.0 + TAU * ratio, 32, Palette.INK, 3.0, true)
