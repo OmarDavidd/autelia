@@ -5,6 +5,8 @@ Es un juego completo y, a la vez, el **entorno experimental de una tesis** sobre
 dinámica de la dificultad: cada partida se puede repetir con una semilla, la dificultad se
 controla con un solo valor y el juego registra métricas del jugador en cada oleada.
 
+**[▶ Jugar en el navegador](https://autelia.omard.space)** · funciona en escritorio con teclado y mouse.
+
 ![Oleada en curso](docs/images/etapa6-oleada.png)
 
 ## ¿Por qué "Autelia"?
@@ -124,6 +126,16 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7 y smoke_sound
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
+```
+
+## Publicar la versión web
+
+La exportación web es de un solo hilo, así que funciona en cualquier hosting estático sin
+configuración especial. Requiere las plantillas de exportación web de Godot 4.7.2.
+
+```sh
+godot --headless --path . --export-release "Web" build/web/index.html
+cd build/web && npx vercel deploy --prod      # publica en autelia.omard.space
 ```
 
 ## Documentación de la tesis
