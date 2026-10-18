@@ -5,6 +5,8 @@ config_version=5
 
 [application]
 
+boot_splash/bg_color=Color(0.918, 0.965, 0.933, 1)
+boot_splash/show_image=false
 config/name="Autelia"
 config/description="2D top-down wave survival shooter. Also the experimental environment for a dynamic difficulty adjustment thesis."
 run/main_scene="res://modes/survival/survival.tscn"
@@ -21,6 +23,8 @@ Sfx="*res://audio/sfx.gd"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+; Extra space on non-16:9 screens shows background instead of black bars.
+window/stretch/aspect="expand"
 
 [input]
 

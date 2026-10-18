@@ -58,7 +58,12 @@ func _on_player_died() -> void:
 func _build() -> void:
 	var root := MarginContainer.new()
 	root.theme = UiStyle.theme()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Same 1280x720 area as the arena, centered, so wide screens do not push the HUD off it.
+	root.set_anchors_preset(Control.PRESET_CENTER)
+	root.offset_left = -640.0
+	root.offset_right = 640.0
+	root.offset_top = -360.0
+	root.offset_bottom = 360.0
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for side in ["left", "right", "top", "bottom"]:
 		root.add_theme_constant_override("margin_" + side, 40)

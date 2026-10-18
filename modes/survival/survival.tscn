@@ -15,6 +15,9 @@ script = ExtResource("1_survival")
 [node name="Arena" type="Node2D" parent="."]
 script = ExtResource("2_arena")
 
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(640, 360)
+
 [node name="Enemies" type="Node2D" parent="."]
 
 [node name="Player" parent="." instance=ExtResource("3_player")]
