@@ -298,8 +298,17 @@ func _pause_screen() -> void:
 	get_tree().paused = false
 
 
+const SAMPLE_TOP := [
+	{"name": "Lucía", "score": 2480, "wave": 9},
+	{"name": "Omar", "score": 1240, "wave": 6},
+	{"name": "Mateo", "score": 980, "wave": 5},
+	{"name": "Sofi", "score": 410, "wave": 3},
+]
+
+
 ## Opens the main menu with a throwaway profile, so captures never touch the saved name.
 func _arcade_menu() -> Node:
+	Leaderboard.enabled = false
 	GameSession.profile_path = "user://capture_profile.cfg"
 	GameSession.save_name("Omar")
 	MainMenu.seen = false
@@ -318,7 +327,9 @@ func _arcade_modes() -> void:
 func _arcade_name() -> void:
 	var main: Node = await _arcade_menu()
 	main.get_node("MainMenu").show_arcade()
-	await _frames(10)
+	await _frames(2)
+	main.get_node("MainMenu").board.show_rows(SAMPLE_TOP, "Omar", -1)
+	await _frames(8)
 
 
 ## Starts an arcade run from the menu, offline, and plays it with an auto-aiming player.
@@ -328,13 +339,14 @@ func _arcade_start(seed_value: int) -> Node:
 	mode.run_seed = seed_value
 	main.get_node("MainMenu").show_arcade()
 	main.get_node("MainMenu").start_arcade()
-	main.leaderboard.url = ""
 	return main
 
 
 func _arcade_run() -> void:
 	var main: Node = await _arcade_start(2026)
 	var mode: SurvivalMode = main.get_node("Survival")
+	await _frames(2)
+	mode.hud.show_leaderboard(SAMPLE_TOP, "Omar", 0)
 	mode.player.health.invulnerable_left = 999.0
 	Input.action_press("shoot")
 	for i in int(60 * 12.0):
@@ -349,10 +361,5 @@ func _arcade_game_over() -> void:
 	main.get_node("Survival/Score").add(1240)
 	mode.player.health.take_damage(10000.0)
 	await _frames(50)
-	mode.hud.show_leaderboard([
-		{"name": "Lucía", "score": 2480, "wave": 9},
-		{"name": "Omar", "score": 1240, "wave": 6},
-		{"name": "Mateo", "score": 980, "wave": 5},
-		{"name": "Sofi", "score": 410, "wave": 3},
-	], "Omar", 1240)
+	mode.hud.show_leaderboard(SAMPLE_TOP, "Omar", 1240)
 	await _frames(5)

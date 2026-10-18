@@ -1,27 +1,29 @@
 class_name Hud
 extends CanvasLayer
-## In-game HUD: health, wave and time, kills, the arcade score, and the game-over panel.
+## In-game HUD: health, wave and time, kills, the game-over panel and, in Arcade, the score,
+## the next leaderboard place to beat and the global top scores.
 ## Updates from Events and the mode's public getters; it never changes game state.
 ## Copy is in Spanish because the players are Spanish speakers.
 
 ## Lets the player's death animation play before the panel covers it.
 const GAME_OVER_DELAY := 0.6
-## Leaderboard grid: rank, name, points, wave.
-const BOARD_COLUMNS := 4
 
 var health_bar: ProgressBar
 var wave_label: Label
 var kills_label: Label
 var score_label: Label
+var next_label: Label
 var game_over_panel: PanelContainer
 var game_over_label: Label
-var board_status: Label
-var board_rows: GridContainer
+var board: LeaderboardTable
 var hint_label: Label
 
 var _mode: SurvivalMode
 var _kills := 0
 var _score: ScoreKeeper
+## The top scores loaded for this run; empty until (and unless) they arrive.
+var _rows := []
+var _rows_loaded := false
 
 
 func _ready() -> void:
@@ -45,30 +47,30 @@ func show_score(keeper: ScoreKeeper) -> void:
 	keeper.changed.connect(_on_score_changed)
 
 
-## Fills the leaderboard; the row matching this run is highlighted.
+## Fills the leaderboard (the row matching this run is highlighted) and the next place to beat.
 func show_leaderboard(rows: Array, player_name: String, score: int) -> void:
-	for child in board_rows.get_children():
-		child.free()
-	board_status.visible = rows.is_empty()
-	board_status.text = "Todavía no hay puntajes"
-	var marked := false
-	for i in rows.size():
-		var row: Dictionary = rows[i]
-		var mine: bool = not marked and row.name == player_name and row.score == score
-		marked = marked or mine
-		var cells := ["%d." % (i + 1), row.name, str(row.score), "Oleada %d" % row.wave]
-		for c in BOARD_COLUMNS:
-			var cell := UiStyle.label(HORIZONTAL_ALIGNMENT_RIGHT if c != 1 else HORIZONTAL_ALIGNMENT_LEFT, 22)
-			cell.text = cells[c]
-			cell.add_theme_font_override("font", UiStyle.font(700 if mine else 500))
-			if mine:
-				cell.add_theme_color_override("font_color", Palette.PLAYER.darkened(0.35))
-			board_rows.add_child(cell)
+	_rows = rows
+	_rows_loaded = true
+	board.show_rows(rows, player_name, score)
+	_update_next()
 
 
 func show_leaderboard_error() -> void:
-	board_status.visible = true
-	board_status.text = "No se pudo cargar la tabla"
+	_rows_loaded = false
+	board.show_error()
+	_update_next()
+
+
+## The next leaderboard place above `score`. Rows are sorted best first; a tie does not
+## pass, because the older score stays ahead.
+static func next_text(rows: Array, score: int) -> String:
+	if rows.is_empty():
+		return "Tabla vacía: ¡sé el primero!"
+	for i in range(rows.size() - 1, -1, -1):
+		var row: Dictionary = rows[i]
+		if row.score >= score:
+			return "Próximo: #%d %s · %d (faltan %d)" % [i + 1, row.name, row.score, row.score - score + 1]
+	return "¡Récord! Vas primero"
 
 
 func _process(_delta: float) -> void:
@@ -95,6 +97,13 @@ func _on_enemy_killed(_enemy: Node) -> void:
 
 func _on_score_changed(score: int) -> void:
 	score_label.text = "Puntos: %d" % score
+	_update_next()
+
+
+func _update_next() -> void:
+	next_label.visible = _rows_loaded and _score != null
+	if next_label.visible:
+		next_label.text = next_text(_rows, _score.score)
 
 
 func _on_player_died() -> void:
@@ -106,7 +115,7 @@ func _show_game_over() -> void:
 	var wave := _mode.spawner.wave if _mode else 0
 	if _score:
 		game_over_label.text = "Fin de la partida\nPuntos: %d · Oleada alcanzada: %d" % [_score.score, wave]
-		board_rows.get_parent().visible = true
+		board.visible = true
 		hint_label.visible = true
 	else:
 		game_over_label.text = "Fin de la partida\nOleada alcanzada: %d · Eliminaciones: %d\n\nPresiona R para reiniciar" % [wave, _kills]
@@ -153,6 +162,11 @@ func _build() -> void:
 	score_label.add_theme_font_override("font", UiStyle.font(700))
 	score_label.visible = false
 	middle.add_child(score_label)
+	next_label = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 20)
+	next_label.add_theme_font_override("font", UiStyle.font(600))
+	next_label.add_theme_color_override("font_color", Color(Palette.INK, 0.75))
+	next_label.visible = false
+	middle.add_child(next_label)
 
 	kills_label = UiStyle.label(HORIZONTAL_ALIGNMENT_RIGHT)
 	kills_label.custom_minimum_size = Vector2(240, 0)
@@ -176,24 +190,9 @@ func _build() -> void:
 	column.add_child(game_over_label)
 
 	# Arcade only: the global leaderboard, shown while it loads or with its error.
-	var board := VBoxContainer.new()
+	board = LeaderboardTable.new()
 	board.visible = false
-	board.add_theme_constant_override("separation", 8)
 	column.add_child(board)
-	var heading := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 24)
-	heading.text = "Mejores puntajes"
-	heading.add_theme_font_override("font", UiStyle.font(700))
-	board.add_child(heading)
-	board_status = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 22)
-	board_status.text = "Cargando la tabla…"
-	board_status.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
-	board.add_child(board_status)
-	board_rows = GridContainer.new()
-	board_rows.columns = BOARD_COLUMNS
-	board_rows.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	board_rows.add_theme_constant_override("h_separation", 24)
-	board_rows.add_theme_constant_override("v_separation", 4)
-	board.add_child(board_rows)
 
 	hint_label = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 22)
 	hint_label.text = "Presiona R para reiniciar"

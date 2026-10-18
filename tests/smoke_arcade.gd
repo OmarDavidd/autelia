@@ -1,7 +1,7 @@
 extends Node
 ## Arcade smoke test: menu split, player name, difficulty ramp, score, leaderboard client, game over.
 ## Run: godot --headless --path . tests/smoke_arcade.tscn
-## Never touches the network: the leaderboard is left unconfigured, which is the offline path.
+## Never touches the network: Leaderboard.enabled is off, which is the offline path.
 
 const PROFILE := "user://test_profile.cfg"
 
@@ -24,12 +24,15 @@ func _expect(condition: bool, message: String) -> void:
 
 func _run() -> void:
 	GameSession.profile_path = PROFILE
+	Leaderboard.enabled = false
 	_ramp_rises_and_caps()
+	_next_target_line()
 	_names_are_cleaned_validated_and_remembered()
 	await _score_counts_kills_and_waves()
 	await _leaderboard_requests_and_parsing()
 	await _experiment_keeps_fixed_difficulty()
 	await _arcade_from_menu_to_game_over()
+	await _arcade_page_shows_the_table()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 
 	get_tree().paused = false
@@ -48,6 +51,20 @@ func _ramp_rises_and_caps() -> void:
 	_expect(is_equal_approx(RampController.START, 0.3), "ramp must start at 0.3")
 	_expect(is_equal_approx(ramp.next_difficulty({}, 0.3), 0.37), "ramp must add 0.07 per wave")
 	_expect(is_equal_approx(ramp.next_difficulty({}, 0.98), 1.0), "ramp must cap at 1.0")
+
+
+func _next_target_line() -> void:
+	var rows := [
+		{"name": "Lucía", "score": 2480, "wave": 9},
+		{"name": "Omar", "score": 1240, "wave": 6},
+		{"name": "Mateo", "score": 980, "wave": 5},
+	]
+	_expect(Hud.next_text(rows, 640) == "Próximo: #3 Mateo · 980 (faltan 341)", "below: %s" % Hud.next_text(rows, 640))
+	# A tie does not pass: the older score stays ahead.
+	_expect(Hud.next_text(rows, 980) == "Próximo: #3 Mateo · 980 (faltan 1)", "tie: %s" % Hud.next_text(rows, 980))
+	_expect(Hud.next_text(rows, 1000) == "Próximo: #2 Omar · 1240 (faltan 241)", "passed one: %s" % Hud.next_text(rows, 1000))
+	_expect(Hud.next_text(rows, 2481) == "¡Récord! Vas primero", "record: %s" % Hud.next_text(rows, 2481))
+	_expect(Hud.next_text([], 0) == "Tabla vacía: ¡sé el primero!", "empty: %s" % Hud.next_text([], 0))
 
 
 func _names_are_cleaned_validated_and_remembered() -> void:
@@ -102,13 +119,13 @@ func _leaderboard_requests_and_parsing() -> void:
 	_expect(Leaderboard.parse_rows('[{"name":"A"}]'.to_utf8_buffer()).is_empty(), "rows without score must be dropped")
 
 	var board := Leaderboard.new()
-	board.url = ""
 	add_child(board)
-	var failed := [false]
-	board.failed.connect(func() -> void: failed[0] = true)
+	var failed := [0]
+	board.failed.connect(func() -> void: failed[0] += 1)
 	board.submit_and_fetch("Tester", 130, 2)
+	board.fetch_top()
 	await _frames(2)
-	_expect(failed[0], "unconfigured leaderboard must fail instead of hanging")
+	_expect(failed[0] == 2, "disabled leaderboard must fail instead of hanging (%d)" % failed[0])
 	board.queue_free()
 	await _frames(2)
 
@@ -167,17 +184,38 @@ func _arcade_from_menu_to_game_over() -> void:
 	keeper.add(40)
 	_expect(mode.hud.score_label.text == "Puntos: 40", "score label not updated: %s" % mode.hud.score_label.text)
 
-	main.leaderboard.url = ""
+	_expect(not mode.hud.next_label.visible, "next line shown without a loaded table")
+	var table := [{"name": "Bo", "score": 60, "wave": 2}, {"name": "Cy", "score": 30, "wave": 1}]
+	mode.hud.show_leaderboard(table, "Ana", keeper.score)
+	_expect(mode.hud.next_label.visible, "next line hidden with a loaded table")
+	_expect(mode.hud.next_label.text == "Próximo: #1 Bo · 60 (faltan 21)", "next line: %s" % mode.hud.next_label.text)
+	keeper.add(30)
+	_expect(mode.hud.next_label.text == "¡Récord! Vas primero", "next line not updated: %s" % mode.hud.next_label.text)
+
 	mode.player.health.take_damage(10000.0)
 	await _frames(50)
 	_expect(mode.hud.game_over_panel.visible, "arcade game over never appeared")
-	_expect(mode.hud.game_over_label.text.contains("Puntos: 40"), "game over misses the score: %s" % mode.hud.game_over_label.text)
-	_expect(mode.hud.board_status.text == "No se pudo cargar la tabla", "offline status: %s" % mode.hud.board_status.text)
+	_expect(mode.hud.game_over_label.text.contains("Puntos: 70"), "game over misses the score: %s" % mode.hud.game_over_label.text)
+	_expect(mode.hud.board.status.text == "No se pudo cargar la tabla", "offline status: %s" % mode.hud.board.status.text)
+	_expect(not mode.hud.next_label.visible, "next line kept after the table failed")
 
 	mode.hud.show_leaderboard([{"name": "Ana", "score": 40, "wave": 1}, {"name": "Bo", "score": 20, "wave": 1}], "Ana", 40)
-	_expect(not mode.hud.board_status.visible, "status still shown with rows")
-	_expect(mode.hud.board_rows.get_child_count() == 2 * Hud.BOARD_COLUMNS, "board rows: %d" % mode.hud.board_rows.get_child_count())
+	_expect(not mode.hud.board.status.visible, "status still shown with rows")
+	_expect(mode.hud.board.rows.get_child_count() == 2 * LeaderboardTable.COLUMNS, "board rows: %d" % mode.hud.board.rows.get_child_count())
 
 	main.queue_free()
 	GameSession.mode = GameSession.Mode.EXPERIMENT
+	await _frames(2)
+
+
+func _arcade_page_shows_the_table() -> void:
+	var main := await _open_main()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_arcade()
+	await _frames(2)
+	_expect(menu.board.is_visible_in_tree(), "arcade page does not show the table")
+	_expect(menu.board.status.text == "No se pudo cargar la tabla", "arcade page offline status: %s" % menu.board.status.text)
+	menu.board.show_rows([{"name": "Bo", "score": 60, "wave": 2}], "Ana", -1)
+	_expect(menu.board.rows.get_child_count() == LeaderboardTable.COLUMNS, "arcade page rows: %d" % menu.board.rows.get_child_count())
+	main.queue_free()
 	await _frames(2)

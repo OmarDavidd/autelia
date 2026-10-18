@@ -10,6 +10,9 @@ signal failed
 const TOP_SIZE := 10
 const TIMEOUT := 8.0
 
+## Tests and scripted captures turn this off so they never reach the network.
+static var enabled := true
+
 var url := LeaderboardConfig.value("url")
 var key := LeaderboardConfig.value("key")
 
@@ -44,7 +47,7 @@ static func parse_rows(body: PackedByteArray) -> Array:
 
 
 func is_configured() -> bool:
-	return not url.is_empty() and not key.is_empty()
+	return enabled and not url.is_empty() and not key.is_empty()
 
 
 ## Runs with no points are not stored, but the table is still loaded.
@@ -58,6 +61,14 @@ func submit_and_fetch(player_name: String, score: int, wave: int) -> void:
 		if sent.is_empty():
 			failed.emit()
 			return
+	await fetch_top()
+
+
+## Loads the top scores without submitting anything.
+func fetch_top() -> void:
+	if not is_configured():
+		failed.emit.call_deferred()
+		return
 	var top := await _request(HTTPClient.METHOD_GET, top_query())
 	if top.is_empty():
 		failed.emit()

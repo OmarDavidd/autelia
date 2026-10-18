@@ -1,7 +1,7 @@
 class_name MainMenu
 extends CanvasLayer
 ## Main menu shown once per launch: Experimento, Modos (Arcade), Controles, Acerca de and
-## (on desktop) Salir. Arcade asks for the player's name first.
+## (on desktop) Salir. Arcade asks for the player's name first, next to the global top scores.
 ## The game stays paused behind it. Starting a run is also what lets browsers start audio,
 ## since they block sound until the user interacts with the page.
 ## The chosen mode goes to GameSession; main.gd applies it when the menu is dismissed.
@@ -18,6 +18,8 @@ var experiment_button: Button
 var arcade_button: Button
 var name_input: LineEdit
 var name_error: Label
+var board: LeaderboardTable
+var _leaderboard: Leaderboard
 var _home: Control
 var _modes: Control
 var _arcade: Control
@@ -69,6 +71,8 @@ func show_arcade() -> void:
 	name_error.visible = false
 	_show(_arcade)
 	name_input.grab_focus.call_deferred()
+	board.show_loading()
+	_leaderboard.fetch_top()
 
 
 func _start() -> void:
@@ -166,7 +170,23 @@ func _build_modes() -> Control:
 
 
 func _build_arcade() -> Control:
-	var column := _titled_panel("Arcade", 520)
+	var page := _titled_panel("Arcade", 900)
+	var sides := HBoxContainer.new()
+	sides.add_theme_constant_override("separation", 40)
+	page.add_child(sides)
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 14)
+	sides.add_child(column)
+
+	board = LeaderboardTable.new(20)
+	board.custom_minimum_size = Vector2(380, 0)
+	sides.add_child(board)
+	_leaderboard = Leaderboard.new()
+	add_child(_leaderboard)
+	_leaderboard.top_loaded.connect(func(rows: Array) -> void: board.show_rows(rows, GameSession.load_name(), -1))
+	_leaderboard.failed.connect(board.show_error)
+
 	var info := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 21)
 	info.text = "Cada oleada es más difícil. Suma puntos\ny entra en la tabla de mejores puntajes."
 	info.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
@@ -204,7 +224,7 @@ func _build_arcade() -> Control:
 	play.pressed.connect(start_arcade)
 	column.add_child(play)
 	column.add_child(_back_button())
-	return column.get_parent()
+	return page.get_parent()
 
 
 ## A menu panel with a big title; returns the column to fill.

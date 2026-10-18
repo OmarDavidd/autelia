@@ -34,6 +34,8 @@ func _apply_mode() -> void:
 	leaderboard.top_loaded.connect(_on_top_loaded)
 	leaderboard.failed.connect(survival.hud.show_leaderboard_error)
 	Events.player_died.connect(_on_player_died)
+	# Loaded up front so the HUD can show the next place to beat during the run.
+	leaderboard.fetch_top()
 
 
 func _on_player_died() -> void:
