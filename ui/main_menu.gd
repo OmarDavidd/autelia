@@ -92,7 +92,9 @@ func _build_home() -> Control:
 	subtitle.text = "Sobrevive a las oleadas"
 	column.add_child(subtitle)
 
-	column.add_child(Lineup.new())
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 28)
+	column.add_child(gap)
 
 	var buttons := VBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
@@ -185,17 +187,3 @@ func _back_button() -> Button:
 	back.pressed.connect(func() -> void: _show(_home))
 	return back
 
-
-## The three characters, drawn with the same functions the game uses.
-class Lineup:
-	extends Control
-
-	func _init() -> void:
-		custom_minimum_size = Vector2(0, 170)
-
-	func _draw() -> void:
-		var middle := size.x / 2.0
-		var y := 95.0
-		Sketch.draw_chaser(self, Vector2.RIGHT, Palette.ENEMY, Vector2(middle - 220, y), 2.2)
-		Sketch.draw_player(self, Vector2(0.45, -1).normalized(), Vector2(middle, y), 2.6)
-		Sketch.draw_shooter(self, Vector2.LEFT, Vector2.LEFT, Palette.SHOOTER, Vector2(middle + 220, y), 2.2)
