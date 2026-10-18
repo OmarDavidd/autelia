@@ -13,6 +13,7 @@ var stage: SubViewport
 
 var scenarios := {
 	"etapa2-disparo": _stage2_shooting,
+	"etapa3-enemigos": _stage3_enemies,
 }
 
 
@@ -48,10 +49,8 @@ func _run() -> void:
 	get_tree().quit(0)
 
 
-func _load_survival() -> Node:
-	var scene: Node = load("res://modes/survival/survival.tscn").instantiate()
-	stage.add_child(scene)
-	return scene
+func _sandbox() -> Dictionary:
+	return Sandbox.create(stage)
 
 
 func _frames(count: int) -> void:
@@ -60,10 +59,25 @@ func _frames(count: int) -> void:
 
 
 func _stage2_shooting() -> void:
-	var scene := _load_survival()
-	var player: Player = scene.get_node("Player")
-	var target: Node2D = scene.get_node("TargetDummyA")
+	var sandbox := _sandbox()
+	var player: Player = sandbox.player
+	var target := Sandbox.spawn(sandbox.world, "res://core/enemies/target_dummy.tscn", Vector2(960, 250))
+	Sandbox.spawn(sandbox.world, "res://core/enemies/target_dummy.tscn", Vector2(960, 470))
 	player.aim_override = target.global_position
 	Input.action_press("shoot")
 	await _frames(34)
+	Input.action_release("shoot")
+
+
+func _stage3_enemies() -> void:
+	var sandbox := _sandbox()
+	var player: Player = sandbox.player
+	var chaser := Sandbox.spawn(sandbox.world, "res://core/enemies/chaser.tscn", Vector2(1060, 200))
+	Sandbox.spawn(sandbox.world, "res://core/enemies/chaser.tscn", Vector2(1060, 540))
+	Sandbox.spawn(sandbox.world, "res://core/enemies/shooter.tscn", Vector2(220, 300))
+	Input.action_press("shoot")
+	for i in 55:
+		if is_instance_valid(chaser):
+			player.aim_override = chaser.global_position
+		await get_tree().physics_frame
 	Input.action_release("shoot")
