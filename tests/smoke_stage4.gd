@@ -46,8 +46,9 @@ func _make_run(seed_value: int) -> SurvivalMode:
 	spawner.first_break = 0.5
 	spawner.wave_duration = 2.0
 	spawner.break_duration = 0.5
-	spawner.spawn_interval = 0.25
 	add_child(mode)
+	# The difficulty director sets the interval on ready; override it afterwards.
+	mode.spawner.spawn_interval = 0.25
 	mode.player.health.invulnerability_time = 999.0
 	mode.player.health.invulnerable_left = 999.0
 	return mode

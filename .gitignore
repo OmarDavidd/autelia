@@ -11,6 +11,8 @@ build/
 # Experiment data: participant telemetry never goes into git
 data/
 *.csv
+# Synthetic example produced by a bot, kept as documentation
+!docs/tesis/ejemplos/*.csv
 
 # Python (ml/)
 .venv/

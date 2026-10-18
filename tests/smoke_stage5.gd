@@ -25,8 +25,9 @@ func _run() -> void:
 	var spawner: WaveSpawner = mode.get_node("Spawner")
 	spawner.first_break = 0.5
 	spawner.wave_duration = 3.0
-	spawner.spawn_interval = 0.25
 	add_child(mode)
+	# The difficulty director sets the interval on ready; override it afterwards.
+	mode.spawner.spawn_interval = 0.25
 	var hud := mode.hud
 	var player := mode.player
 

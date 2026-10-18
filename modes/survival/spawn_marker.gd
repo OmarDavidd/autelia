@@ -5,6 +5,8 @@ extends Node2D
 
 var scene: PackedScene
 var duration := 0.6
+## Optional hook to adjust the enemy before it enters the tree.
+var on_spawn: Callable
 
 var _elapsed := 0.0
 
@@ -14,6 +16,8 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 	if _elapsed >= duration:
 		var enemy: Node2D = scene.instantiate()
+		if on_spawn.is_valid():
+			on_spawn.call(enemy)
 		get_parent().add_child(enemy)
 		enemy.global_position = global_position
 		queue_free()

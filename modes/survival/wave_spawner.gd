@@ -12,11 +12,17 @@ const SHOOTER := preload("res://core/enemies/shooter.tscn")
 @export var wave_duration := 30.0
 @export var break_duration := 3.0
 @export var first_break := 2.0
+## Overwritten by a difficulty director when the scene has one (see DifficultyParams).
 @export var spawn_interval := 1.4
 @export var max_alive := 12
 @export var shooter_chance := 0.3
 @export var min_player_distance := 220.0
 @export var telegraph_time := 0.6
+
+## Set by whoever controls difficulty. Applied to enemies as they spawn.
+var speed_multiplier := 1.0
+var fire_rate_multiplier := 1.0
+var health_multiplier := 1.0
 
 var wave := 0
 var running := false
@@ -103,9 +109,21 @@ func _spawn_one() -> void:
 	var marker := SpawnMarker.new()
 	marker.scene = scene
 	marker.duration = telegraph_time
+	marker.on_spawn = _tune
 	_container.add_child(marker)
 	marker.global_position = at
 	spawned.emit(scene.resource_path, at)
+
+
+## Scales a freshly instantiated enemy before it enters the tree (Health resets on ready).
+func _tune(enemy: Node) -> void:
+	if enemy is Enemy:
+		enemy.speed *= speed_multiplier
+		var health: Health = enemy.get_node("Health")
+		health.max_health *= health_multiplier
+	if enemy is Shooter:
+		var weapon: Weapon = enemy.get_node("Pivot/Weapon")
+		weapon.fire_rate *= fire_rate_multiplier
 
 
 ## Always uses exactly two RNG draws, so the random sequence does not depend on

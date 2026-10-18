@@ -5,6 +5,9 @@
 [ext_resource type="PackedScene" path="res://core/player/player.tscn" id="3_player"]
 [ext_resource type="Script" path="res://modes/survival/wave_spawner.gd" id="4_spawner"]
 [ext_resource type="Script" path="res://ui/hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://difficulty/difficulty_director.gd" id="6_director"]
+[ext_resource type="Script" path="res://telemetry/telemetry_recorder.gd" id="7_telemetry"]
+[ext_resource type="Script" path="res://ui/debug_panel.gd" id="8_debug"]
 
 [node name="Survival" type="Node2D"]
 script = ExtResource("1_survival")
@@ -22,3 +25,19 @@ script = ExtResource("4_spawner")
 
 [node name="Hud" type="CanvasLayer" parent="."]
 script = ExtResource("5_hud")
+
+[node name="Difficulty" type="Node" parent="."]
+script = ExtResource("6_director")
+spawner_path = NodePath("../Spawner")
+telemetry_path = NodePath("../Telemetry")
+
+[node name="Telemetry" type="Node" parent="."]
+script = ExtResource("7_telemetry")
+mode_path = NodePath("..")
+director_path = NodePath("../Difficulty")
+
+[node name="DebugPanel" type="CanvasLayer" parent="."]
+script = ExtResource("8_debug")
+mode_path = NodePath("..")
+director_path = NodePath("../Difficulty")
+telemetry_path = NodePath("../Telemetry")

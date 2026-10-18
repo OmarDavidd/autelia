@@ -47,6 +47,10 @@ restart={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":82)]
 }
+debug_panel={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194334)]
+}
 screenshot={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":4194343)]
