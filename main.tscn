@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://modes/survival/survival.tscn" id="1_survival"]
+[ext_resource type="Script" path="res://ui/start_screen.gd" id="2_start"]
+
+[node name="Main" type="Node"]
+
+[node name="Survival" parent="." instance=ExtResource("1_survival")]
+
+[node name="StartScreen" type="CanvasLayer" parent="."]
+script = ExtResource("2_start")
