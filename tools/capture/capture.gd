@@ -19,6 +19,10 @@ var scenarios := {
 	"etapa5-fin": _stage5_game_over,
 	"etapa6-oleada": _stage5_hud,
 	"etapa6-personajes": _stage6_lineup,
+	"etapa7-baja": _stage7_low,
+	"etapa7-alta": _stage7_high,
+	"etapa7-panel": _stage7_panel,
+	"etapa7-bot": _stage7_bot_session,
 }
 
 
@@ -166,3 +170,78 @@ func _stage6_lineup() -> void:
 		bullet.global_position = spec[0]
 		still.call(bullet)
 	await _frames(2)
+
+
+func _stage7_wave_at(difficulty: float) -> SurvivalMode:
+	var mode: SurvivalMode = load("res://modes/survival/survival.tscn").instantiate()
+	mode.run_seed = 2026
+	mode.get_node("Telemetry").output_dir = "user://capture_telemetry"
+	stage.add_child(mode)
+	mode.get_node("Difficulty").set_difficulty(difficulty)
+	mode.player.health.invulnerable_left = 999.0
+	for i in int(60 * 10.0):
+		_aim_nearest(mode.player, mode.enemies)
+		await get_tree().physics_frame
+	return mode
+
+
+func _stage7_low() -> void:
+	await _stage7_wave_at(0.1)
+
+
+func _stage7_high() -> void:
+	await _stage7_wave_at(0.9)
+
+
+func _stage7_panel() -> void:
+	var mode: SurvivalMode = load("res://modes/survival/survival.tscn").instantiate()
+	mode.run_seed = 2026
+	mode.get_node("Telemetry").output_dir = "user://capture_telemetry"
+	stage.add_child(mode)
+	mode.get_node("DebugPanel").visible = true
+	mode.get_node("Difficulty").set_difficulty(0.65)
+	Input.action_press("shoot")
+	for i in int(60 * 6.0):
+		_aim_nearest(mode.player, mode.enemies)
+		await get_tree().physics_frame
+	Input.action_release("shoot")
+
+
+## A simple bot (shoots the nearest enemy, steps away from threats) plays three short
+## waves at d = 0.5 and leaves its telemetry in docs/tesis/ejemplos/ as a sample file.
+func _stage7_bot_session() -> void:
+	var out_dir := ProjectSettings.globalize_path("res://docs/tesis/ejemplos")
+	var mode: SurvivalMode = load("res://modes/survival/survival.tscn").instantiate()
+	mode.run_seed = 2026
+	var spawner: WaveSpawner = mode.get_node("Spawner")
+	spawner.wave_duration = 15.0
+	var telemetry: TelemetryRecorder = mode.get_node("Telemetry")
+	telemetry.output_dir = out_dir
+	stage.add_child(mode)
+	Input.action_press("shoot")
+	var frames := 0
+	while spawner.wave < 4 and not mode.player.health.is_dead() and frames < 60 * 70:
+		_aim_nearest(mode.player, mode.enemies)
+		_dodge(mode.player, mode.enemies, mode.arena)
+		await get_tree().physics_frame
+		frames += 1
+	for action in ["shoot", "move_left", "move_right", "move_up", "move_down"]:
+		Input.action_release(action)
+	var target := out_dir + "/telemetria-ejemplo.csv"
+	DirAccess.remove_absolute(target)
+	DirAccess.rename_absolute(telemetry.file_path, target)
+	print("Sample telemetry: ", target)
+
+
+func _dodge(player: Player, enemies: Node, arena: Arena) -> void:
+	var push := Vector2.ZERO
+	for enemy in enemies.get_children():
+		if enemy is Enemy:
+			var away: Vector2 = player.global_position - enemy.global_position
+			push += away / maxf(away.length_squared(), 400.0) * 400.0
+	push += (arena.play_rect().get_center() - player.global_position) * 0.004
+	for pair in [["move_right", push.x], ["move_left", -push.x], ["move_down", push.y], ["move_up", -push.y]]:
+		if pair[1] > 0.3:
+			Input.action_press(pair[0])
+		else:
+			Input.action_release(pair[0])
