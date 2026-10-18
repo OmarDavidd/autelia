@@ -6,4 +6,5 @@ const FLOOR := Color("e9efe7")
 const INK := Color("15201a")
 const PLAYER := Color("38d98a")
 const ENEMY := Color("ef6f5e")
+const SHOOTER := Color("f2a541")
 const OUTLINE_WIDTH := 3.0

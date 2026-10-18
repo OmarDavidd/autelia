@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://core/enemies/shooter.gd" id="1_shooter"]
+[ext_resource type="Script" path="res://core/combat/health.gd" id="2_health"]
+[ext_resource type="Script" path="res://core/combat/weapon.gd" id="3_weapon"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_shooter"]
+radius = 16.0
+
+[node name="Shooter" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 5
+motion_mode = 1
+script = ExtResource("1_shooter")
+speed = 110.0
+contact_damage = 5.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_shooter")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 40.0
+
+[node name="Pivot" type="Node2D" parent="."]
+
+[node name="Weapon" type="Node2D" parent="Pivot"]
+position = Vector2(24, 0)
+script = ExtResource("3_weapon")
+team = 1
+fire_rate = 1.2
+bullet_speed = 420.0
+damage = 10.0

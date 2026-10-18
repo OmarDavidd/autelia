@@ -21,17 +21,15 @@ func _run() -> void:
 	Events.player_damaged.connect(func(_amount: float, _left: float) -> void: player_damage_events += 1)
 	Events.player_died.connect(func() -> void: player_deaths += 1)
 
-	var scene: Node = load("res://modes/survival/survival.tscn").instantiate()
-	add_child(scene)
-	var player: Player = scene.get_node("Player")
+	var sandbox := Sandbox.create(self)
+	var player: Player = sandbox.player
 	await get_tree().physics_frame
 
 	# Headless has no real mouse, so put a target on the line the player is aiming at.
 	await get_tree().physics_frame
 	var aim := Vector2.RIGHT.rotated(player.body.rotation)
-	var dummy: TargetDummy = load("res://core/enemies/target_dummy.tscn").instantiate()
-	scene.add_child(dummy)
-	dummy.global_position = player.global_position + aim * 180.0
+	var dummy: TargetDummy = Sandbox.spawn(sandbox.world, "res://core/enemies/target_dummy.tscn",
+		player.global_position + aim * 180.0)
 
 	# 1 second of holding fire at 8 shots/s.
 	Input.action_press("shoot")

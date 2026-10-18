@@ -2,6 +2,8 @@ class_name Player
 extends CharacterBody2D
 ## Top-down player: free movement with acceleration, aims at the mouse, holds to shoot.
 
+const RADIUS := 16.0
+
 @export var speed := 260.0
 @export var acceleration := 2200.0
 @export var friction := 2600.0
@@ -15,6 +17,7 @@ var aim_override := Vector2.INF
 
 
 func _ready() -> void:
+	add_to_group("player")
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 

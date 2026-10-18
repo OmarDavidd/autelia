@@ -13,10 +13,9 @@ func _run() -> void:
 		if not InputMap.has_action(action) or InputMap.action_get_events(action).is_empty():
 			failures.append("missing input action: %s" % action)
 
-	var scene: Node = load("res://modes/survival/survival.tscn").instantiate()
-	add_child(scene)
-	var player: Player = scene.get_node("Player")
-	var arena: Arena = scene.get_node("Arena")
+	var sandbox := Sandbox.create(self)
+	var player: Player = sandbox.player
+	var arena: Arena = sandbox.arena
 	var start_x := player.global_position.x
 
 	Input.action_press("move_right")
