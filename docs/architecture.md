@@ -1,0 +1,63 @@
+# Autelia architecture
+
+A 2D top-down wave survival game. Besides being playable, it is built as a controlled
+environment: runs are reproducible from a seed, difficulty is a single value, and gameplay is
+measured per wave.
+
+## Event flow
+
+```
+core/ and modes/ ──emit──▶ Events (autoload) ──▶ HUD · Sfx · Telemetry · Difficulty
+```
+
+Gameplay code announces what happens (`shot_fired`, `enemy_hit`, `enemy_killed`,
+`player_damaged`, `player_died`, `wave_started`, `wave_ended`). Everything else listens and
+never changes gameplay in return.
+
+## Folders
+
+| Folder | Owns | Must not know about |
+|---|---|---|
+| `autoload/` | `Events` signal bus, `DebugTools` (F12 screenshots) | anything else |
+| `core/` | player, enemies, combat (weapon, bullet, health), arena, palette and drawing helpers | difficulty, telemetry |
+| `modes/` | game rules. `survival/` runs timed waves and owns the run's seeded RNG | how difficulty is chosen |
+| `difficulty/` | `DifficultyParams` (d → parameters), `DifficultyDirector`, controllers | gameplay nodes |
+| `telemetry/` | `TelemetryRecorder`: one CSV row per wave | gameplay logic |
+| `ui/` | HUD, researcher panel (F3), shared UI style | |
+| `audio/` | `Sfx`: plays sounds on events | |
+| `tools/` | scripted captures, sound synthesis, test sandbox | |
+| `tests/` | smoke tests, run as scenes | |
+
+Dependency rule: `core/` and `modes/` never import `difficulty/`, `telemetry/`, `ui/` or
+`audio/`. New game modes can reuse the core without carrying any measurement code.
+
+## Difficulty
+
+One value `d` in [0, 1] maps linearly to spawn interval, enemy speed, shooter fire rate and
+enemy health (`DifficultyParams`); `d = 0.5` is the base tuning. The `DifficultyDirector`
+applies it to the spawner, which scales enemies as they spawn, so a change never alters
+enemies already on screen.
+
+After each wave the director asks its controller for the next value through
+`next_difficulty(window, current)`. The only controller today is `FixedController`; other
+strategies plug in with the same interface.
+
+## Telemetry
+
+Each wave is one measurement window. `TelemetryRecorder` counts the player's shots and hits,
+damage dealt and taken, kills, deaths and active time, and appends a row when the wave ends or
+the player dies. Columns are listed in `TelemetryRecorder.COLUMNS` and in the README.
+Files go to `user://telemetry/` and are never committed.
+
+## Reproducibility
+
+All gameplay randomness goes through the run's seeded `RandomNumberGenerator`. Spawn
+positions always use exactly two draws, so the sequence does not depend on where the player
+moves. Presentation code (sound pitch variation) uses its own RNG. Timers run on physics time,
+not wall-clock time.
+
+## Art and sound
+
+Everything is drawn in code (`Sketch` helpers, `Palette`) and every sound is synthesized by
+`tools/sfx/generate_sfx.py`, so there are no third-party assets apart from the Fredoka font
+(SIL OFL).
