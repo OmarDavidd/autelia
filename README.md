@@ -36,10 +36,18 @@ objetivo de la dificultad adaptativa.
 
 ## Cómo jugar
 
+El menú principal ofrece dos formas de jugar:
+
+- **Experimento:** la partida de la tesis, con dificultad fija. Es la condición de control.
+- **Modos → Arcade:** escribes un nombre (sin cuenta ni contraseña) y cada oleada es más difícil.
+  Sumas 10 puntos por perseguidor, 20 por tirador y 50 × el número de oleada por cada oleada
+  que sobrevives. Al morir, el puntaje se sube a una **tabla global** con los 10 mejores.
+
 | Tecla | Acción |
 |---|---|
 | WASD o flechas | Moverse |
 | Mouse + clic izquierdo | Apuntar y disparar |
+| Esc o P | Pausa |
 | R | Reiniciar al morir |
 | F3 | Panel del investigador |
 | F12 | Guardar una captura de pantalla |
@@ -80,9 +88,24 @@ ajuste base.
   <em>La misma oleada (semilla 2026) con dificultad 0,1 y con dificultad 0,9.</em>
 </p>
 
-Hoy la dificultad se mantiene **fija**, que es la condición de control. La arquitectura ya
-admite controladores intercambiables: el ajuste por reglas y el modelo de la tesis se
-agregarán sin modificar el juego.
+En el modo Experimento la dificultad se mantiene **fija**, que es la condición de control. La
+arquitectura admite controladores intercambiables: el ajuste por reglas y el modelo de la
+tesis se agregarán sin modificar el juego. El modo Arcade usa uno de ellos, una rampa que
+empieza en 0,3 y sube 0,07 por oleada hasta llegar a 1.
+
+## Tabla global de puntajes
+
+La tabla del modo Arcade vive en [Supabase](https://supabase.com) y el juego la consulta por
+su API REST. Para configurarla:
+
+1. Crea un proyecto en Supabase y ejecuta [`docs/leaderboard.sql`](docs/leaderboard.sql) en el
+   editor SQL.
+2. Copia la URL del proyecto y la clave pública (*publishable* o *anon*) en
+   [`online/leaderboard_config.gd`](online/leaderboard_config.gd). Nunca la clave secreta.
+
+La clave pública queda dentro del juego a propósito: las reglas de seguridad de la tabla solo
+permiten leer e insertar puntajes con valores razonables, nunca editarlos ni borrarlos. Sin
+configuración, o sin conexión, el juego funciona igual y la tabla muestra un aviso.
 
 ## Telemetría
 
@@ -106,10 +129,11 @@ Los datos de participantes nunca se guardan en el repositorio.
 ```
 autoload/      Bus de eventos global y utilidades de desarrollo
 core/          Jugador, enemigos, combate, arena y estilo de dibujo
-modes/         Reglas de cada modo de juego (supervivencia por oleadas)
+modes/         Reglas de cada modo de juego (supervivencia por oleadas, puntaje del Arcade)
 difficulty/    Valor de dificultad, su efecto en los parámetros y los controladores
 telemetry/     Registro de métricas por oleada en CSV
-ui/            HUD y panel del investigador
+online/        Tabla global de puntajes en Supabase
+ui/            Menús, HUD y panel del investigador
 audio/         Reproducción de efectos de sonido
 tools/         Capturas guionadas, generador de sonidos y entorno de pruebas
 tests/         Pruebas automáticas por etapa
@@ -123,7 +147,7 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 ## Pruebas y herramientas
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7 y smoke_sound
+godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel y arcade
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
 ```

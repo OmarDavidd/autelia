@@ -20,16 +20,21 @@ never changes gameplay in return.
 |---|---|---|
 | `autoload/` | `Events` signal bus, `DebugTools` (F12 screenshots) | anything else |
 | `core/` | player, enemies, combat (weapon, bullet, health), arena, palette and drawing helpers | difficulty, telemetry |
-| `modes/` | game rules. `survival/` runs timed waves and owns the run's seeded RNG | how difficulty is chosen |
+| `modes/` | game rules. `survival/` runs timed waves and owns the run's seeded RNG; `arcade/` keeps the score; `GameSession` holds the mode and name chosen in the menu | how difficulty is chosen |
 | `difficulty/` | `DifficultyParams` (d → parameters), `DifficultyDirector`, controllers | gameplay nodes |
 | `telemetry/` | `TelemetryRecorder`: one CSV row per wave | gameplay logic |
-| `ui/` | HUD, researcher panel (F3), shared UI style | |
+| `online/` | `Leaderboard`: global Arcade scores on Supabase (REST) | gameplay logic |
+| `ui/` | main and pause menus, HUD, researcher panel (F3), shared UI style | |
 | `audio/` | `Sfx`: plays sounds on events | |
 | `tools/` | scripted captures, sound synthesis, test sandbox | |
 | `tests/` | smoke tests, run as scenes | |
 
 Dependency rule: `core/` and `modes/` never import `difficulty/`, `telemetry/`, `ui/` or
 `audio/`. New game modes can reuse the core without carrying any measurement code.
+
+`main.gd` is the composition root. When the main menu closes it applies the chosen mode:
+Experiment leaves the run as is; Arcade swaps in `RampController`, adds a `ScoreKeeper`,
+shows the score on the HUD and submits it to the `Leaderboard` when the player dies.
 
 ## Difficulty
 
@@ -39,8 +44,9 @@ applies it to the spawner, which scales enemies as they spawn, so a change never
 enemies already on screen.
 
 After each wave the director asks its controller for the next value through
-`next_difficulty(window, current)`. The only controller today is `FixedController`; other
-strategies plug in with the same interface.
+`next_difficulty(window, current)`. `FixedController` (the Experiment mode, the control
+condition) never changes it; `RampController` (Arcade) starts at 0.3 and adds 0.07 per wave
+up to 1. Other strategies plug in with the same interface.
 
 ## Telemetry
 

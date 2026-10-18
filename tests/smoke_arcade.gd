@@ -1,0 +1,183 @@
+extends Node
+## Arcade smoke test: menu split, player name, difficulty ramp, score, leaderboard client, game over.
+## Run: godot --headless --path . tests/smoke_arcade.tscn
+## Never touches the network: the leaderboard is left unconfigured, which is the offline path.
+
+const PROFILE := "user://test_profile.cfg"
+
+var failures: Array[String] = []
+
+
+func _ready() -> void:
+	_run.call_deferred()
+
+
+func _frames(count: int) -> void:
+	for i in count:
+		await get_tree().physics_frame
+
+
+func _expect(condition: bool, message: String) -> void:
+	if not condition:
+		failures.append(message)
+
+
+func _run() -> void:
+	GameSession.profile_path = PROFILE
+	_ramp_rises_and_caps()
+	_names_are_cleaned_validated_and_remembered()
+	await _score_counts_kills_and_waves()
+	await _leaderboard_requests_and_parsing()
+	await _experiment_keeps_fixed_difficulty()
+	await _arcade_from_menu_to_game_over()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
+
+	get_tree().paused = false
+	if failures.is_empty():
+		print("SMOKE OK: arcade ramps, scores, remembers the name and shows the leaderboard")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			printerr("FAIL: ", failure)
+		get_tree().quit(1)
+
+
+func _ramp_rises_and_caps() -> void:
+	var ramp := RampController.new()
+	_expect(ramp.label() == "ramp", "ramp label: %s" % ramp.label())
+	_expect(is_equal_approx(RampController.START, 0.3), "ramp must start at 0.3")
+	_expect(is_equal_approx(ramp.next_difficulty({}, 0.3), 0.37), "ramp must add 0.07 per wave")
+	_expect(is_equal_approx(ramp.next_difficulty({}, 0.98), 1.0), "ramp must cap at 1.0")
+
+
+func _names_are_cleaned_validated_and_remembered() -> void:
+	_expect(GameSession.clean_name("  Omar  ") == "Omar", "name not trimmed")
+	_expect(not GameSession.is_valid_name("ab"), "2-char name accepted")
+	_expect(GameSession.is_valid_name("abc"), "3-char name rejected")
+	_expect(GameSession.is_valid_name("a".repeat(16)), "16-char name rejected")
+	_expect(not GameSession.is_valid_name("a".repeat(17)), "17-char name accepted")
+	_expect(not GameSession.is_valid_name("   "), "blank name accepted")
+	GameSession.save_name("Tester")
+	_expect(GameSession.load_name() == "Tester", "name not remembered: %s" % GameSession.load_name())
+
+
+func _score_counts_kills_and_waves() -> void:
+	var keeper := ScoreKeeper.new()
+	add_child(keeper)
+	var chaser: Node = load("res://core/enemies/chaser.tscn").instantiate()
+	var shooter: Node = load("res://core/enemies/shooter.tscn").instantiate()
+	Events.enemy_killed.emit(chaser)
+	_expect(keeper.score == 10, "chaser must give 10, got %d" % keeper.score)
+	Events.enemy_killed.emit(shooter)
+	_expect(keeper.score == 30, "shooter must give 20, got %d" % (keeper.score - 10))
+	Events.wave_ended.emit(2)
+	_expect(keeper.score == 130, "surviving wave 2 must give 100, got %d" % (keeper.score - 30))
+	Events.player_died.emit()
+	Events.enemy_killed.emit(chaser)
+	_expect(keeper.score == 130, "score changed after the player died")
+	chaser.free()
+	shooter.free()
+	keeper.queue_free()
+	await _frames(2)
+
+
+func _leaderboard_requests_and_parsing() -> void:
+	var legacy := Leaderboard.headers("eyJhbGciOi.test")
+	_expect(legacy.has("apikey: eyJhbGciOi.test"), "apikey header missing")
+	_expect(legacy.has("Authorization: Bearer eyJhbGciOi.test"), "legacy JWT key needs a bearer header")
+	var publishable := Leaderboard.headers("sb_publishable_test")
+	_expect(publishable.has("apikey: sb_publishable_test"), "publishable apikey header missing")
+	_expect(not "\n".join(publishable).contains("Authorization"),
+		"publishable key is not a JWT and must not be sent as bearer")
+
+	var body: Dictionary = JSON.parse_string(Leaderboard.insert_body("Tester", 130, 2))
+	_expect(body == {"name": "Tester", "score": 130.0, "wave": 2.0}, "insert body: %s" % str(body))
+	_expect(Leaderboard.top_query() == "/rest/v1/scores?select=name,score,wave&order=score.desc,created_at.asc&limit=10",
+		"top query: %s" % Leaderboard.top_query())
+
+	var rows := Leaderboard.parse_rows('[{"name":"A","score":300,"wave":4},{"name":"B","score":120,"wave":2}]'.to_utf8_buffer())
+	_expect(rows.size() == 2 and rows[0].name == "A" and rows[0].score == 300 and rows[1].wave == 2,
+		"rows not parsed: %s" % str(rows))
+	_expect(Leaderboard.parse_rows("not json".to_utf8_buffer()).is_empty(), "garbage must parse to no rows")
+	_expect(Leaderboard.parse_rows('[{"name":"A"}]'.to_utf8_buffer()).is_empty(), "rows without score must be dropped")
+
+	var board := Leaderboard.new()
+	board.url = ""
+	add_child(board)
+	var failed := [false]
+	board.failed.connect(func() -> void: failed[0] = true)
+	board.submit_and_fetch("Tester", 130, 2)
+	await _frames(2)
+	_expect(failed[0], "unconfigured leaderboard must fail instead of hanging")
+	board.queue_free()
+	await _frames(2)
+
+
+func _open_main() -> Node:
+	MainMenu.seen = false
+	var main: Node = load("res://main.tscn").instantiate()
+	add_child(main)
+	await _frames(2)
+	return main
+
+
+func _experiment_keeps_fixed_difficulty() -> void:
+	var main := await _open_main()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.play_experiment()
+	await _frames(2)
+	var mode: SurvivalMode = main.get_node("Survival")
+	var director: DifficultyDirector = mode.get_node("Difficulty")
+	_expect(GameSession.mode == GameSession.Mode.EXPERIMENT, "experiment not selected")
+	_expect(director.controller is FixedController, "experiment must keep fixed difficulty")
+	_expect(not mode.hud.score_label.visible, "experiment must not show a score")
+	_expect(mode.get_node_or_null("Score") == null, "experiment must not keep score")
+	main.queue_free()
+	await _frames(2)
+
+
+func _arcade_from_menu_to_game_over() -> void:
+	var main := await _open_main()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_modes()
+	_expect(menu.arcade_button.is_visible_in_tree(), "modes page does not show Arcade")
+	menu.show_arcade()
+	_expect(menu.name_input.text == "Tester", "name field must start with the remembered name")
+
+	menu.name_input.text = "ab"
+	_expect(not menu.start_arcade(), "short name started the run")
+	_expect(menu.name_error.visible, "short name shows no error")
+	_expect(get_tree().paused, "game unpaused with an invalid name")
+
+	menu.name_input.text = "  Ana  "
+	_expect(menu.start_arcade(), "valid name did not start the run")
+	await _frames(2)
+	_expect(not get_tree().paused, "arcade still paused after starting")
+	_expect(GameSession.player_name == "Ana", "player name not kept: %s" % GameSession.player_name)
+	_expect(GameSession.load_name() == "Ana", "new name not remembered")
+
+	var mode: SurvivalMode = main.get_node("Survival")
+	var director: DifficultyDirector = mode.get_node("Difficulty")
+	_expect(director.controller is RampController, "arcade must ramp difficulty")
+	_expect(is_equal_approx(director.difficulty, RampController.START), "arcade must start at 0.3, got %.2f" % director.difficulty)
+	_expect(mode.hud.score_label.visible, "arcade must show the score")
+	_expect(mode.hud.score_label.text == "Puntos: 0", "score label: %s" % mode.hud.score_label.text)
+
+	var keeper: ScoreKeeper = mode.get_node("Score")
+	keeper.add(40)
+	_expect(mode.hud.score_label.text == "Puntos: 40", "score label not updated: %s" % mode.hud.score_label.text)
+
+	main.leaderboard.url = ""
+	mode.player.health.take_damage(10000.0)
+	await _frames(50)
+	_expect(mode.hud.game_over_panel.visible, "arcade game over never appeared")
+	_expect(mode.hud.game_over_label.text.contains("Puntos: 40"), "game over misses the score: %s" % mode.hud.game_over_label.text)
+	_expect(mode.hud.board_status.text == "No se pudo cargar la tabla", "offline status: %s" % mode.hud.board_status.text)
+
+	mode.hud.show_leaderboard([{"name": "Ana", "score": 40, "wave": 1}, {"name": "Bo", "score": 20, "wave": 1}], "Ana", 40)
+	_expect(not mode.hud.board_status.visible, "status still shown with rows")
+	_expect(mode.hud.board_rows.get_child_count() == 2 * Hud.BOARD_COLUMNS, "board rows: %d" % mode.hud.board_rows.get_child_count())
+
+	main.queue_free()
+	GameSession.mode = GameSession.Mode.EXPERIMENT
+	await _frames(2)

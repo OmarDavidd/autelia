@@ -1,8 +1,10 @@
 class_name MainMenu
 extends CanvasLayer
-## Main menu shown once per launch: Jugar, Controles, Acerca de and (on desktop) Salir.
-## The game stays paused behind it. Clicking Jugar is also what lets browsers start audio,
+## Main menu shown once per launch: Experimento, Modos (Arcade), Controles, Acerca de and
+## (on desktop) Salir. Arcade asks for the player's name first.
+## The game stays paused behind it. Starting a run is also what lets browsers start audio,
 ## since they block sound until the user interacts with the page.
+## The chosen mode goes to GameSession; main.gd applies it when the menu is dismissed.
 ## Restarting with R reloads the scene but skips the menu.
 
 signal dismissed
@@ -12,8 +14,13 @@ const REPO_URL := "https://github.com/OmarDavidd/autelia"
 ## Survives scene reloads, so the menu only appears when asked for.
 static var seen := false
 
-var play_button: Button
+var experiment_button: Button
+var arcade_button: Button
+var name_input: LineEdit
+var name_error: Label
 var _home: Control
+var _modes: Control
+var _arcade: Control
 var _controls: Control
 var _about: Control
 
@@ -35,7 +42,36 @@ func _unhandled_input(event: InputEvent) -> void:
 		_show(_home)
 
 
-func play() -> void:
+func play_experiment() -> void:
+	GameSession.mode = GameSession.Mode.EXPERIMENT
+	_start()
+
+
+## Starts an arcade run with the typed name. Returns false (and shows why) if it is invalid.
+func start_arcade() -> bool:
+	var player_name := GameSession.clean_name(name_input.text)
+	if not GameSession.is_valid_name(player_name):
+		name_error.visible = true
+		return false
+	GameSession.player_name = player_name
+	GameSession.save_name(player_name)
+	GameSession.mode = GameSession.Mode.ARCADE
+	_start()
+	return true
+
+
+func show_modes() -> void:
+	_show(_modes)
+
+
+func show_arcade() -> void:
+	name_input.text = GameSession.load_name()
+	name_error.visible = false
+	_show(_arcade)
+	name_input.grab_focus.call_deferred()
+
+
+func _start() -> void:
 	seen = true
 	get_tree().paused = false
 	dismissed.emit()
@@ -51,7 +87,7 @@ func show_about() -> void:
 
 
 func _show(page: Control) -> void:
-	for each in [_home, _controls, _about]:
+	for each in [_home, _modes, _arcade, _controls, _about]:
 		each.visible = each == page
 
 
@@ -67,6 +103,8 @@ func _build() -> void:
 	add_child(center)
 
 	_home = _build_home()
+	_modes = _build_modes()
+	_arcade = _build_arcade()
 	_controls = _build_page("Controles", [
 		["Moverse", "WASD o flechas"],
 		["Apuntar y disparar", "Mouse y clic izquierdo"],
@@ -74,7 +112,7 @@ func _build() -> void:
 		["Reiniciar", "R al terminar la partida"],
 	])
 	_about = _build_about()
-	for page in [_home, _controls, _about]:
+	for page in [_home, _modes, _arcade, _controls, _about]:
 		center.add_child(page)
 
 
@@ -97,9 +135,12 @@ func _build_home() -> Control:
 	buttons.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(buttons)
 
-	play_button = UiStyle.button("Jugar")
-	play_button.pressed.connect(play)
-	buttons.add_child(play_button)
+	experiment_button = UiStyle.button("Experimento")
+	experiment_button.pressed.connect(play_experiment)
+	buttons.add_child(experiment_button)
+	var modes := UiStyle.button("Modos")
+	modes.pressed.connect(show_modes)
+	buttons.add_child(modes)
 	var controls := UiStyle.button("Controles")
 	controls.pressed.connect(show_controls)
 	buttons.add_child(controls)
@@ -111,6 +152,71 @@ func _build_home() -> Control:
 		var quit := UiStyle.button("Salir")
 		quit.pressed.connect(func() -> void: get_tree().quit())
 		buttons.add_child(quit)
+	return column
+
+
+func _build_modes() -> Control:
+	var column := _titled_panel("Modos", 420)
+	arcade_button = UiStyle.button("Arcade")
+	arcade_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	arcade_button.pressed.connect(show_arcade)
+	column.add_child(arcade_button)
+	column.add_child(_back_button())
+	return column.get_parent()
+
+
+func _build_arcade() -> Control:
+	var column := _titled_panel("Arcade", 520)
+	var info := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 21)
+	info.text = "Cada oleada es más difícil. Suma puntos\ny entra en la tabla de mejores puntajes."
+	info.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
+	column.add_child(info)
+
+	name_input = LineEdit.new()
+	name_input.placeholder_text = "Tu nombre"
+	name_input.max_length = GameSession.NAME_MAX
+	name_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_input.custom_minimum_size = Vector2(320, 52)
+	name_input.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	name_input.add_theme_font_override("font", UiStyle.font(600))
+	name_input.add_theme_font_size_override("font_size", 24)
+	name_input.add_theme_color_override("font_color", Palette.INK)
+	name_input.add_theme_color_override("font_placeholder_color", Color(Palette.INK, 0.4))
+	name_input.add_theme_color_override("caret_color", Palette.INK)
+	for state in ["normal", "focus"]:
+		var field := UiStyle.box(Palette.WHITE)
+		field.set_border_width_all(3)
+		field.border_color = Palette.INK
+		field.set_content_margin_all(10)
+		name_input.add_theme_stylebox_override(state, field)
+	name_input.text_submitted.connect(func(_text: String) -> void: start_arcade())
+	name_input.text_changed.connect(func(_text: String) -> void: name_error.visible = false)
+	column.add_child(name_input)
+
+	name_error = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 20)
+	name_error.text = "El nombre debe tener entre %d y %d caracteres" % [GameSession.NAME_MIN, GameSession.NAME_MAX]
+	name_error.add_theme_color_override("font_color", Palette.ENEMY.darkened(0.3))
+	name_error.visible = false
+	column.add_child(name_error)
+
+	var play := UiStyle.button("Jugar", 220)
+	play.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	play.pressed.connect(start_arcade)
+	column.add_child(play)
+	column.add_child(_back_button())
+	return column.get_parent()
+
+
+## A menu panel with a big title; returns the column to fill.
+func _titled_panel(heading: String, min_width: float) -> VBoxContainer:
+	var panel := UiStyle.menu_panel(min_width)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 14)
+	panel.add_child(column)
+	var title := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 40)
+	title.text = heading
+	title.add_theme_font_override("font", UiStyle.font(700))
+	column.add_child(title)
 	return column
 
 

@@ -2,8 +2,10 @@
 
 [ext_resource type="PackedScene" path="res://modes/survival/survival.tscn" id="1_survival"]
 [ext_resource type="Script" path="res://ui/main_menu.gd" id="2_menu"]
+[ext_resource type="Script" path="res://main.gd" id="3_main"]
 
 [node name="Main" type="Node"]
+script = ExtResource("3_main")
 
 [node name="Survival" parent="." instance=ExtResource("1_survival")]
 

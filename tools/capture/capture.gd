@@ -27,6 +27,10 @@ var scenarios := {
 	"feel-muerte": _feel_death_burst,
 	"menu-acerca": _menu_about,
 	"pausa": _pause_screen,
+	"arcade-modos": _arcade_modes,
+	"arcade-nombre": _arcade_name,
+	"arcade-partida": _arcade_run,
+	"arcade-fin": _arcade_game_over,
 }
 
 
@@ -292,3 +296,63 @@ func _pause_screen() -> void:
 	mode.get_node("PauseMenu").open()
 	await _frames(10)
 	get_tree().paused = false
+
+
+## Opens the main menu with a throwaway profile, so captures never touch the saved name.
+func _arcade_menu() -> Node:
+	GameSession.profile_path = "user://capture_profile.cfg"
+	GameSession.save_name("Omar")
+	MainMenu.seen = false
+	var main: Node = load("res://main.tscn").instantiate()
+	stage.add_child(main)
+	await _frames(3)
+	return main
+
+
+func _arcade_modes() -> void:
+	var main: Node = await _arcade_menu()
+	main.get_node("MainMenu").show_modes()
+	await _frames(10)
+
+
+func _arcade_name() -> void:
+	var main: Node = await _arcade_menu()
+	main.get_node("MainMenu").show_arcade()
+	await _frames(10)
+
+
+## Starts an arcade run from the menu, offline, and plays it with an auto-aiming player.
+func _arcade_start(seed_value: int) -> Node:
+	var main: Node = await _arcade_menu()
+	var mode: SurvivalMode = main.get_node("Survival")
+	mode.run_seed = seed_value
+	main.get_node("MainMenu").show_arcade()
+	main.get_node("MainMenu").start_arcade()
+	main.leaderboard.url = ""
+	return main
+
+
+func _arcade_run() -> void:
+	var main: Node = await _arcade_start(2026)
+	var mode: SurvivalMode = main.get_node("Survival")
+	mode.player.health.invulnerable_left = 999.0
+	Input.action_press("shoot")
+	for i in int(60 * 12.0):
+		_aim_nearest(mode.player, mode.enemies)
+		await get_tree().physics_frame
+	Input.action_release("shoot")
+
+
+func _arcade_game_over() -> void:
+	var main: Node = await _arcade_start(2026)
+	var mode: SurvivalMode = main.get_node("Survival")
+	main.get_node("Survival/Score").add(1240)
+	mode.player.health.take_damage(10000.0)
+	await _frames(50)
+	mode.hud.show_leaderboard([
+		{"name": "Lucía", "score": 2480, "wave": 9},
+		{"name": "Omar", "score": 1240, "wave": 6},
+		{"name": "Mateo", "score": 980, "wave": 5},
+		{"name": "Sofi", "score": 410, "wave": 3},
+	], "Omar", 1240)
+	await _frames(5)
