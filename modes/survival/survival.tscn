@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://core/world/arena.gd" id="2_arena"]
 [ext_resource type="PackedScene" path="res://core/player/player.tscn" id="3_player"]
 [ext_resource type="Script" path="res://modes/survival/wave_spawner.gd" id="4_spawner"]
+[ext_resource type="Script" path="res://ui/hud.gd" id="5_hud"]
 
 [node name="Survival" type="Node2D"]
 script = ExtResource("1_survival")
@@ -18,3 +19,6 @@ position = Vector2(640, 360)
 
 [node name="Spawner" type="Node" parent="."]
 script = ExtResource("4_spawner")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")

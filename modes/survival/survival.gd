@@ -11,6 +11,7 @@ extends Node2D
 @onready var player: Player = $Player
 @onready var enemies: Node2D = $Enemies
 @onready var spawner: WaveSpawner = $Spawner
+@onready var hud: Hud = $Hud
 
 var rng := RandomNumberGenerator.new()
 var used_seed := 0
@@ -22,6 +23,7 @@ func _ready() -> void:
 	print("Run seed: ", used_seed)
 	Events.player_died.connect(_on_player_died)
 	spawner.start(rng, arena, player, enemies)
+	hud.bind(self)
 
 
 func _unhandled_input(event: InputEvent) -> void:
