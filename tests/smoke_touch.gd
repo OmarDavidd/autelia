@@ -29,6 +29,7 @@ func _run() -> void:
 	await _sticks_move_aim_and_shoot()
 	await _death_offers_restart()
 	await _mouse_player_on_touch_device_keeps_r_hint()
+	await _name_field_waits_for_a_tap()
 	_rotate_hint_only_in_portrait()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 	TouchControls.forced = false
@@ -173,6 +174,37 @@ func _sticks_move_aim_and_shoot() -> void:
 	GameSession.mode = GameSession.Mode.EXPERIMENT
 
 
+## Phones only open their keyboard when a tap focuses the field, so the Arcade page must not
+## take focus by itself on a touchscreen.
+func _name_field_waits_for_a_tap() -> void:
+	TouchControls.forced = true
+	MainMenu.seen = false
+	var main: Node = load("res://main.tscn").instantiate()
+	add_child(main)
+	await _frames(2)
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_arcade()
+	await _frames(2)
+	_expect(not menu.name_input.has_focus(), "name field grabbed focus on a touchscreen")
+	_expect(_page_text(menu._controls).contains("Joystick izquierdo"), "touch controls page does not explain the sticks")
+	_expect(not _page_text(menu._controls).contains("WASD"), "touch controls page still lists the keyboard")
+	main.queue_free()
+	await _frames(2)
+
+	TouchControls.forced = false
+	MainMenu.seen = false
+	main = load("res://main.tscn").instantiate()
+	add_child(main)
+	await _frames(2)
+	menu = main.get_node("MainMenu")
+	menu.show_arcade()
+	await _frames(2)
+	_expect(menu.name_input.has_focus(), "name field must still take focus with a keyboard")
+	_expect(_page_text(menu._controls).contains("WASD"), "keyboard controls page lost WASD")
+	main.queue_free()
+	await _frames(2)
+
+
 func _mouse_fires() -> bool:
 	return InputMap.action_get_events("shoot").any(func(e: InputEvent) -> bool: return e is InputEventMouseButton)
 
@@ -214,3 +246,10 @@ func _mouse_player_on_touch_device_keeps_r_hint() -> void:
 	main.queue_free()
 	GameSession.mode = GameSession.Mode.EXPERIMENT
 	await _frames(2)
+
+
+func _page_text(page: Node) -> String:
+	var text := ""
+	for node in page.find_children("*", "Label", true, false):
+		text += (node as Label).text + "\n"
+	return text

@@ -73,7 +73,10 @@ func show_arcade() -> void:
 	name_input.text = GameSession.load_name()
 	name_error.visible = false
 	_show(_arcade)
-	name_input.grab_focus.call_deferred()
+	# Phones only open their keyboard when a tap focuses the field; taking focus here would
+	# leave it focused with no keyboard, and later taps would not open one either.
+	if not TouchControls.wanted():
+		name_input.grab_focus.call_deferred()
 	board.show_loading()
 	_leaderboard.fetch_top()
 
@@ -122,12 +125,22 @@ func _build() -> void:
 	_home = _build_home()
 	_modes = _build_modes()
 	_arcade = _build_arcade()
-	_controls = _build_page("Controles", [
-		["Moverse", "WASD o flechas"],
-		["Apuntar y disparar", "Mouse y clic izquierdo"],
-		["Pausa", "Esc o P"],
-		["Reiniciar", "R al terminar la partida"],
-	])
+	# Phones get the touch controls of the Arcade mode, the only mode they can play.
+	if TouchControls.wanted():
+		_controls = _build_page("Controles", [
+			["Moverse", "Joystick izquierdo"],
+			["Apuntar y disparar", "Mantén el joystick derecho"],
+			["Pausa", "Botón II"],
+			["Reiniciar", "Botón Reiniciar al terminar"],
+			["Pantalla", "Teléfono en horizontal"],
+		])
+	else:
+		_controls = _build_page("Controles", [
+			["Moverse", "WASD o flechas"],
+			["Apuntar y disparar", "Mouse y clic izquierdo"],
+			["Pausa", "Esc o P"],
+			["Reiniciar", "R al terminar la partida"],
+		])
 	_about = _build_about()
 	_scores = _build_scores()
 	for page in [_home, _modes, _arcade, _scores, _controls, _about]:
