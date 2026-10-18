@@ -14,6 +14,7 @@ var preview: Leaderboard
 
 
 func _ready() -> void:
+	add_child(RotateHint.new())
 	# The game stays paused behind the menu, so nothing has spawned when the mode is applied.
 	if MainMenu.seen:
 		_apply_mode()
@@ -44,6 +45,12 @@ func _apply_mode() -> void:
 	preview.top_loaded.connect(_on_preview_loaded)
 	preview.failed.connect(_on_preview_failed)
 	preview.fetch_top()
+
+	if TouchControls.wanted():
+		var touch := TouchControls.new()
+		touch.name = "TouchControls"
+		add_child(touch)
+		touch.bind(survival)
 
 
 func _on_player_died() -> void:

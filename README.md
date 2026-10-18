@@ -51,6 +51,11 @@ El menú principal ofrece:
 | Mouse + clic izquierdo | Apuntar y disparar |
 | Esc o P | Pausa |
 | R | Reiniciar al morir |
+
+En celulares y tabletas, el modo Arcade muestra **controles táctiles**: un joystick a la
+izquierda para moverse y otro a la derecha que apunta y dispara mientras lo mantienes, más
+botones de pausa y de reinicio. Se juega con el teléfono en horizontal. El Experimento sigue
+siendo para computadora con teclado y mouse.
 | F3 | Panel del investigador |
 | F12 | Guardar una captura de pantalla |
 
@@ -70,6 +75,7 @@ godot --path . -- --mute                                          # sin sonido
 | `--difficulty=D` | Dificultad inicial entre 0 y 1 (por defecto 0,5) |
 | `--participant=ID` | Código anónimo del participante para la telemetría |
 | `--mute` | Desactiva el sonido |
+| `--touch` | Muestra los controles táctiles del Arcade aunque no haya pantalla táctil |
 
 ## Dificultad
 
@@ -150,7 +156,7 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 ## Pruebas y herramientas
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel y arcade
+godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade y touch
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
 ```

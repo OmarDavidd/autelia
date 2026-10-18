@@ -24,7 +24,7 @@ never changes gameplay in return.
 | `difficulty/` | `DifficultyParams` (d → parameters), `DifficultyDirector`, controllers | gameplay nodes |
 | `telemetry/` | `TelemetryRecorder`: one CSV row per wave | gameplay logic |
 | `online/` | `Leaderboard`: global Arcade scores on Supabase (REST) | gameplay logic |
-| `ui/` | main and pause menus, HUD, researcher panel (F3), shared UI style | |
+| `ui/` | main and pause menus, HUD, touch controls, rotate hint, researcher panel (F3), shared UI style | |
 | `audio/` | `Sfx`: plays sounds on events | |
 | `tools/` | scripted captures, sound synthesis, test sandbox | |
 | `tests/` | smoke tests, run as scenes | |
@@ -34,7 +34,9 @@ Dependency rule: `core/` and `modes/` never import `difficulty/`, `telemetry/`, 
 
 `main.gd` is the composition root. When the main menu closes it applies the chosen mode:
 Experiment leaves the run as is; Arcade swaps in `RampController`, adds a `ScoreKeeper`,
-shows the score on the HUD and submits it to the `Leaderboard` when the player dies.
+shows the score on the HUD and submits it to the `Leaderboard` when the player dies. On
+touchscreens it also adds `TouchControls`, which feed the same input actions as the keyboard
+and aim through `Player.aim_override`, so the core never knows which device is playing.
 
 ## Difficulty
 

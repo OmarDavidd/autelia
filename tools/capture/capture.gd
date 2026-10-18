@@ -32,6 +32,7 @@ var scenarios := {
 	"arcade-partida": _arcade_run,
 	"arcade-fin": _arcade_game_over,
 	"menu-puntajes": _menu_scores,
+	"arcade-tactil": _arcade_touch,
 }
 
 
@@ -373,3 +374,34 @@ func _menu_scores() -> void:
 	await _frames(2)
 	menu.scores_board.show_rows(SAMPLE_TOP, "", -1)
 	await _frames(8)
+
+
+## Arcade with the touch controls, both thumbs down: moving up-left and firing right.
+func _arcade_touch() -> void:
+	TouchControls.forced = true
+	var main: Node = await _arcade_start(2026)
+	var mode: SurvivalMode = main.get_node("Survival")
+	var controls: TouchControls = main.get_node("TouchControls")
+	await _frames(2)
+	mode.hud.show_leaderboard(SAMPLE_TOP, "Omar", 0)
+	mode.player.health.invulnerable_left = 999.0
+	for i in int(60 * 8.0):
+		var target := mode.player.global_position + Vector2.RIGHT
+		for enemy in mode.enemies.get_children():
+			if enemy is Enemy:
+				target = enemy.global_position
+				break
+		var aim := (target - mode.player.global_position).normalized() * TouchControls.STICK_RADIUS * 0.8
+		for pair in [[0, Vector2(220, 540), Vector2(220, 540) + Vector2(-0.4, -0.5) * TouchControls.STICK_RADIUS],
+				[1, Vector2(1040, 520), Vector2(1040, 520) + aim]]:
+			if i == 0:
+				var touch := InputEventScreenTouch.new()
+				touch.index = pair[0]
+				touch.position = pair[1]
+				touch.pressed = true
+				controls._input(touch)
+			var drag := InputEventScreenDrag.new()
+			drag.index = pair[0]
+			drag.position = pair[2]
+			controls._input(drag)
+		await get_tree().physics_frame

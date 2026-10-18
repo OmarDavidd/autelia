@@ -17,6 +17,8 @@ var game_over_panel: PanelContainer
 var game_over_label: Label
 var board: LeaderboardTable
 var hint_label: Label
+## Arcade game-over hint; touch controls clear it and show their own restart button.
+var restart_hint := "Presiona R para reiniciar"
 
 var _mode: SurvivalMode
 var _kills := 0
@@ -116,7 +118,8 @@ func _show_game_over() -> void:
 	if _score:
 		game_over_label.text = "Fin de la partida\nPuntos: %d · Oleada alcanzada: %d" % [_score.score, wave]
 		board.visible = true
-		hint_label.visible = true
+		hint_label.text = restart_hint
+		hint_label.visible = not restart_hint.is_empty()
 	else:
 		game_over_label.text = "Fin de la partida\nOleada alcanzada: %d · Eliminaciones: %d\n\nPresiona R para reiniciar" % [wave, _kills]
 	game_over_panel.visible = true
@@ -195,7 +198,6 @@ func _build() -> void:
 	column.add_child(board)
 
 	hint_label = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 22)
-	hint_label.text = "Presiona R para reiniciar"
 	hint_label.visible = false
 	column.add_child(hint_label)
 
