@@ -111,7 +111,9 @@ func _telemetry_writes_one_row_per_window() -> void:
 	_expect(telemetry.is_window_open(), "window 1 did not open")
 	for i in 4:
 		Events.shot_fired.emit(mode.player)
-	Events.shot_fired.emit(Node.new())  # an enemy shot must not count
+	var enemy_shooter := Node.new()
+	Events.shot_fired.emit(enemy_shooter)  # an enemy shot must not count
+	enemy_shooter.free()
 	Events.enemy_hit.emit(mode.player, 10.0)
 	Events.enemy_hit.emit(mode.player, 10.0)
 	Events.enemy_killed.emit(mode.player)
