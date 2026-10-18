@@ -1,41 +1,139 @@
 # Autelia
 
-2D top-down survival game built in Godot 4 (GDScript) as the experimental environment for a
-thesis on dynamic difficulty adjustment with a hybrid model: a small artificial neural network
-predicts the player's next-window performance and a PI controller adjusts difficulty.
+Juego de supervivencia por oleadas en 2D con vista superior, hecho en **Godot 4** con GDScript.
+Es un juego completo y, a la vez, el **entorno experimental de una tesis** sobre adaptación
+dinámica de la dificultad: cada partida se puede repetir con una semilla, la dificultad se
+controla con un solo valor y el juego registra métricas del jugador en cada oleada.
 
-The name comes from *autotelic experience* (Csikszentmihalyi's flow theory): an activity
-enjoyed for its own sake, which happens when challenge matches skill.
+![Oleada en curso](docs/tesis/capturas/etapa6-oleada.png)
 
-- Engine: Godot 4.7, GL Compatibility renderer
-- Difficulty conditions: fixed (rule-based and model-based are planned for the thesis)
-- Telemetry: CSV, one row per 30 s wave
+## ¿Por qué "Autelia"?
 
-See [docs/architecture.md](docs/architecture.md) for the module layout and data flow.
+El nombre viene de la **experiencia autotélica** de la teoría del flujo de Mihaly
+Csikszentmihalyi: una actividad que se disfruta por sí misma. Eso ocurre cuando el reto está
+equilibrado con la habilidad de quien juega, y mantener ese equilibrio es justamente el
+objetivo de la dificultad adaptativa.
 
-## Running
+## Características
 
-```sh
-godot --path .                                            # play
-godot --path . -- --seed=2026 --difficulty=0.7 --participant=P01
-godot --path . -- --mute                                  # no sound
-```
+- **Movimiento libre y disparo con el mouse**, con 8 disparos por segundo e invulnerabilidad breve tras recibir daño.
+- **Dos enemigos con roles distintos:**
+  - el **perseguidor** te alcanza para dañarte por contacto;
+  - el **tirador** mantiene distancia y dispara.
+- **Oleadas de 30 segundos** con aviso visual antes de cada aparición y una arena limpia al empezar cada oleada.
+- **Partidas repetibles:** con la misma semilla aparecen los mismos enemigos en los mismos lugares.
+- **Dificultad con un solo valor** de 0 a 1 que ajusta el ritmo de aparición, la velocidad, la cadencia y la vida de los enemigos.
+- **Telemetría por oleada en CSV:** precisión, daño hecho y recibido, eliminaciones, muertes y ritmo de juego.
+- **Panel del investigador** (F3) para ver métricas en vivo y cambiar la dificultad.
+- **Estilo visual propio,** dibujado por código: contornos de tinta, sombras rayadas y personajes con ojos que siguen la acción.
+- **Efectos de sonido sintetizados** por un script del proyecto, sin recursos de terceros.
 
-| Key | Action |
+<p align="center">
+  <img src="docs/tesis/capturas/etapa6-personajes.png" alt="Personajes: jugador, perseguidor, tirador, muñeco de práctica y aviso de aparición" width="720">
+</p>
+
+## Cómo jugar
+
+| Tecla | Acción |
 |---|---|
-| WASD / arrows | Move |
-| Mouse + left click | Aim and shoot |
-| R | Restart after dying |
-| F3 | Researcher panel: difficulty slider, seed, live window stats |
-| F12 | Save a screenshot |
+| WASD o flechas | Moverse |
+| Mouse + clic izquierdo | Apuntar y disparar |
+| R | Reiniciar al morir |
+| F3 | Panel del investigador |
+| F12 | Guardar una captura de pantalla |
 
-Telemetry is written to `user://telemetry/<participant>_<session>.csv`
-(Linux: `~/.local/share/godot/app_userdata/Autelia/telemetry/`), one row per wave.
+## Ejecutar
 
-## Tests and captures
+Requiere [Godot 4.7](https://godotengine.org/).
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # one per stage: 1-5, 7, plus smoke_sound
-godot --path . tools/capture/capture.tscn -- etapa7-alta  # thesis screenshots
-python3 tools/sfx/generate_sfx.py                         # regenerate assets/audio/*.wav
+godot --path .                                                    # jugar
+godot --path . -- --seed=2026 --difficulty=0.7 --participant=P01  # sesión configurada
+godot --path . -- --mute                                          # sin sonido
 ```
+
+| Opción | Efecto |
+|---|---|
+| `--seed=N` | Fija la semilla de la partida (por defecto es aleatoria y se imprime al iniciar) |
+| `--difficulty=D` | Dificultad inicial entre 0 y 1 (por defecto 0,5) |
+| `--participant=ID` | Código anónimo del participante para la telemetría |
+| `--mute` | Desactiva el sonido |
+
+## Dificultad
+
+Un único valor `d` controla cuatro parámetros de forma lineal. Con `d = 0,5` se obtiene el
+ajuste base.
+
+| Parámetro | d = 0 | d = 0,5 | d = 1 |
+|---|---|---|---|
+| Intervalo entre apariciones | 2,0 s | 1,4 s | 0,8 s |
+| Velocidad de los enemigos | ×0,75 | ×1,0 | ×1,25 |
+| Cadencia de disparo del tirador | ×0,6 | ×1,0 | ×1,4 |
+| Vida de los enemigos | ×0,8 | ×1,0 | ×1,2 |
+
+<p align="center">
+  <img src="docs/tesis/capturas/etapa7-baja.png" alt="Misma oleada con dificultad 0,1" width="420">
+  <img src="docs/tesis/capturas/etapa7-alta.png" alt="Misma oleada con dificultad 0,9" width="420">
+  <br>
+  <em>La misma oleada (semilla 2026) con dificultad 0,1 y con dificultad 0,9.</em>
+</p>
+
+Hoy la dificultad se mantiene **fija**, que es la condición de control. La arquitectura ya
+admite controladores intercambiables: el ajuste por reglas y el modelo de la tesis se
+agregarán sin modificar el juego.
+
+## Telemetría
+
+Cada oleada es una ventana de medición y genera una fila en
+`user://telemetry/<participante>_<sesión>.csv`. En Linux:
+`~/.local/share/godot/app_userdata/Autelia/telemetry/`.
+
+| Campo | Descripción |
+|---|---|
+| `participant_id`, `session_id` | Participante y sesión |
+| `condition`, `seed`, `window`, `difficulty` | Condición, semilla, número de oleada y dificultad aplicada |
+| `shots`, `hits`, `accuracy` | Disparos, impactos y precisión |
+| `damage_dealt`, `damage_taken` | Daño causado y recibido |
+| `kills`, `deaths` | Eliminaciones, y si la ventana terminó por la muerte del jugador |
+| `active_time`, `kills_per_minute` | Tiempo jugado en la ventana y ritmo de eliminaciones |
+
+Hay un ejemplo sintético, generado por un bot, en
+[`docs/tesis/ejemplos/telemetria-ejemplo.csv`](docs/tesis/ejemplos/telemetria-ejemplo.csv).
+Los datos de participantes reales nunca se guardan en el repositorio.
+
+## Estructura
+
+```
+autoload/      Bus de eventos global y utilidades de desarrollo
+core/          Jugador, enemigos, combate, arena y estilo de dibujo
+modes/         Reglas de cada modo de juego (supervivencia por oleadas)
+difficulty/    Valor de dificultad, su efecto en los parámetros y los controladores
+telemetry/     Registro de métricas por oleada en CSV
+ui/            HUD y panel del investigador
+audio/         Reproducción de efectos de sonido
+tools/         Capturas guionadas, generador de sonidos y entorno de pruebas
+tests/         Pruebas automáticas por etapa
+docs/          Arquitectura y bitácora de desarrollo para la tesis
+```
+
+La regla principal de la arquitectura es que el núcleo del juego y los modos **solo emiten
+eventos**. El HUD, el sonido, la telemetría y la dificultad escuchan esos eventos sin
+modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architecture.md).
+
+## Pruebas y herramientas
+
+```sh
+godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7 y smoke_sound
+godot --path . tools/capture/capture.tscn -- etapa7-alta  # regenera una captura de la bitácora
+python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
+```
+
+## Bitácora de la tesis
+
+[`docs/tesis/bitacora.md`](docs/tesis/bitacora.md) registra cada etapa del desarrollo: qué se
+hizo, qué se decidió y por qué, cómo se verificó y con qué evidencia.
+
+## Créditos
+
+- Desarrollo: Omar García ([@OmarDavidd](https://github.com/OmarDavidd)).
+- Tipografía [Fredoka](https://fonts.google.com/specimen/Fredoka), con licencia SIL Open Font License ([`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)).
