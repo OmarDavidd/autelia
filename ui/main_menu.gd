@@ -88,10 +88,6 @@ func _build_home() -> Control:
 	title.add_theme_font_override("font", UiStyle.font(700))
 	column.add_child(title)
 
-	var subtitle := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 28)
-	subtitle.text = "Sobrevive a las oleadas"
-	column.add_child(subtitle)
-
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 28)
 	column.add_child(gap)
