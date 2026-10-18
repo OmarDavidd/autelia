@@ -23,6 +23,8 @@ var scenarios := {
 	"etapa7-alta": _stage7_high,
 	"etapa7-panel": _stage7_panel,
 	"etapa7-bot": _stage7_bot_session,
+	"feel-inicio": _feel_start_screen,
+	"feel-muerte": _feel_death_burst,
 }
 
 
@@ -38,6 +40,7 @@ func _run() -> void:
 		get_tree().quit(1)
 		return
 
+	Sfx.muted = true
 	stage = SubViewport.new()
 	stage.size = SIZE
 	stage.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -245,3 +248,23 @@ func _dodge(player: Player, enemies: Node, arena: Arena) -> void:
 			Input.action_press(pair[0])
 		else:
 			Input.action_release(pair[0])
+
+
+func _feel_start_screen() -> void:
+	StartScreen.seen = false
+	stage.add_child(load("res://main.tscn").instantiate())
+	await _frames(20)
+
+
+func _feel_death_burst() -> void:
+	var sandbox := _sandbox()
+	var player: Player = sandbox.player
+	var chaser: Enemy = Sandbox.spawn(sandbox.world, "res://core/enemies/chaser.tscn", Vector2(820, 300))
+	var shooter: Enemy = Sandbox.spawn(sandbox.world, "res://core/enemies/shooter.tscn", Vector2(960, 470))
+	for node in [chaser, shooter]:
+		node.set_physics_process(false)
+	player.aim_override = chaser.global_position
+	await _frames(3)
+	chaser.take_hit(1000.0)
+	shooter.take_hit(1000.0)
+	await _frames(7)
