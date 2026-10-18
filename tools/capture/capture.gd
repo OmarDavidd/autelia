@@ -34,6 +34,7 @@ var scenarios := {
 	"menu-puntajes": _menu_scores,
 	"arcade-tactil": _arcade_touch,
 	"desafio-nombre": _daily_name,
+	"coop-bots": _coop_bots,
 }
 
 
@@ -416,3 +417,20 @@ func _daily_name() -> void:
 	await _frames(2)
 	menu.board.show_rows(SAMPLE_TOP.slice(1), "", -1)
 	await _frames(8)
+
+
+## Arcade with two bot teammates, after the local player has fallen and waits to revive.
+func _coop_bots() -> void:
+	GameSession.bots_override = 2
+	var main: Node = await _arcade_start(2026)
+	var mode: SurvivalMode = main.get_node("Survival")
+	for each in mode.players:
+		each.health.invulnerable_left = 999.0
+	Input.action_press("shoot")
+	for i in int(60 * 9.0):
+		_aim_nearest(mode.player, mode.enemies)
+		await get_tree().physics_frame
+	Input.action_release("shoot")
+	mode.player.health.invulnerable_left = 0.0
+	mode.player.take_hit(10000.0)
+	await _frames(40)

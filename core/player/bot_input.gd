@@ -1,9 +1,11 @@
 class_name BotInput
 extends PlayerInput
 ## A simple teammate for trying co-op without a network: shoots the nearest enemy, backs
-## away from enemies that get close and drifts back toward the middle of the arena.
+## away from enemies that get close, keeps some room from teammates (players do not collide,
+## so identical bots would stack) and drifts back toward the middle of the arena.
 
 const KEEP_AWAY := 220.0
+const PERSONAL_SPACE := 90.0
 const ARENA_CENTER := Vector2(640, 360)
 
 
@@ -13,6 +15,12 @@ func move_vector(player: Player) -> Vector2:
 		var away: Vector2 = player.global_position - enemy.global_position
 		if away.length() < KEEP_AWAY:
 			push += away.normalized() * (1.0 - away.length() / KEEP_AWAY) * 2.0
+	for mate: Player in player.get_tree().get_nodes_in_group("player"):
+		var gap: Vector2 = player.global_position - mate.global_position
+		if mate != player and not mate.health.is_dead() and gap.length() < PERSONAL_SPACE:
+			# Same spot: split along a direction that differs per player.
+			var side := gap.normalized() if gap.length() > 1.0 else Vector2.RIGHT.rotated(player.get_instance_id() % 628 / 100.0)
+			push += side * (1.0 - gap.length() / PERSONAL_SPACE) * 1.5
 	return push.limit_length(1.0)
 
 

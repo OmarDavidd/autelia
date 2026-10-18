@@ -11,6 +11,10 @@ const GAME_OVER_DELAY := 0.6
 var health_bar: ProgressBar
 var wave_label: Label
 var kills_label: Label
+## Co-op only: how many teammates are standing.
+var team_label: Label
+## Co-op only: shown while this machine's player waits to revive.
+var down_label: Label
 var score_label: Label
 var next_label: Label
 var game_over_panel: PanelContainer
@@ -32,7 +36,7 @@ var _rows_loaded := false
 
 func _ready() -> void:
 	_build()
-	Events.player_damaged.connect(_on_player_damaged)
+	Events.player_revived.connect(_on_player_revived)
 	Events.enemy_killed.connect(_on_enemy_killed)
 	Events.player_died.connect(_on_player_died)
 
@@ -41,6 +45,8 @@ func bind(mode: SurvivalMode) -> void:
 	_mode = mode
 	health_bar.max_value = mode.player.health.max_health
 	health_bar.value = mode.player.health.current
+	# The bar follows this machine's player only, never a teammate.
+	mode.player.health.damaged.connect(_on_player_damaged)
 
 
 ## Arcade only: shows the score and puts it, with the leaderboard, on the game-over panel.
@@ -80,6 +86,11 @@ static func next_text(rows: Array, score: int) -> String:
 func _process(_delta: float) -> void:
 	if _mode == null:
 		return
+	var team := _mode.players.size()
+	team_label.visible = team > 1
+	if team_label.visible:
+		team_label.text = "Equipo: %d/%d en pie" % [_mode.living_players().size(), team]
+	down_label.visible = team > 1 and _mode.player.health.is_dead() and not _mode.is_over()
 	var spawner := _mode.spawner
 	var seconds := ceili(spawner.time_left())
 	if spawner.wave == 0:
@@ -92,6 +103,11 @@ func _process(_delta: float) -> void:
 
 func _on_player_damaged(_amount: float, health_left: float) -> void:
 	health_bar.value = health_left
+
+
+func _on_player_revived(player: Node) -> void:
+	if _mode and player == _mode.player:
+		health_bar.value = _mode.player.health.current
 
 
 func _on_enemy_killed(_enemy: Node) -> void:
@@ -172,12 +188,24 @@ func _build() -> void:
 	next_label.add_theme_color_override("font_color", Color(Palette.INK, 0.75))
 	next_label.visible = false
 	middle.add_child(next_label)
+	down_label = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 24)
+	down_label.text = "Caíste. Vuelves en la próxima oleada"
+	down_label.add_theme_font_override("font", UiStyle.font(700))
+	down_label.visible = false
+	middle.add_child(down_label)
 
 	kills_label = UiStyle.label(HORIZONTAL_ALIGNMENT_RIGHT)
 	kills_label.custom_minimum_size = Vector2(240, 0)
 	kills_label.add_theme_font_override("font", UiStyle.font(500))
 	kills_label.text = "Eliminaciones: 0"
-	top.add_child(kills_label)
+	var right := VBoxContainer.new()
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(right)
+	right.add_child(kills_label)
+	team_label = UiStyle.label(HORIZONTAL_ALIGNMENT_RIGHT, 20)
+	team_label.add_theme_font_override("font", UiStyle.font(600))
+	team_label.visible = false
+	right.add_child(team_label)
 
 	game_over_panel = PanelContainer.new()
 	game_over_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

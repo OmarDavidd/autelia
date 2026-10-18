@@ -80,6 +80,7 @@ godot --path . -- --mute                                          # sin sonido
 | `--participant=ID` | Código anónimo del participante para la telemetría |
 | `--mute` | Desactiva el sonido |
 | `--touch` | Muestra los controles táctiles del Arcade aunque no haya pantalla táctil |
+| `--bots=N` | Suma de 1 a 3 compañeros bot al Arcade para probar el cooperativo (esas partidas no entran en la tabla) |
 
 ## Dificultad
 
@@ -160,7 +161,7 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 ## Pruebas y herramientas
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade, touch y daily
+godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade, touch, daily y coop
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
 ```

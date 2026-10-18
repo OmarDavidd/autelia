@@ -33,6 +33,12 @@ func show_loading() -> void:
 	_status("Cargando la tabla…")
 
 
+## A message instead of the table (for example, a run that does not count).
+func show_note(text: String) -> void:
+	_clear()
+	_status(text)
+
+
 func show_error() -> void:
 	_clear()
 	_status("No se pudo cargar la tabla")

@@ -29,17 +29,18 @@ var running := false
 
 var _rng: RandomNumberGenerator
 var _arena: Arena
-var _player: Player
+var _players: Array[Player]
 var _container: Node2D
 var _time_left := 0.0
 var _spawn_timer := 0.0
 var _in_break := true
 
 
-func start(rng: RandomNumberGenerator, arena: Arena, player: Player, container: Node2D) -> void:
+## `players` is kept by reference, so teammates added later are seen too.
+func start(rng: RandomNumberGenerator, arena: Arena, players: Array[Player], container: Node2D) -> void:
 	_rng = rng
 	_arena = arena
-	_player = player
+	_players = players
 	_container = container
 	wave = 0
 	_in_break = true
@@ -127,12 +128,14 @@ func _tune(enemy: Node) -> void:
 
 
 ## Always uses exactly two RNG draws, so the random sequence does not depend on
-## where the player is. A point too close to the player is mirrored across the arena.
+## where the players are. A point too close to a living player is mirrored across the arena.
 func _pick_position() -> Vector2:
 	var rect := _arena.play_rect().grow(-40.0)
 	var at := Vector2(
 		_rng.randf_range(rect.position.x, rect.end.x),
 		_rng.randf_range(rect.position.y, rect.end.y))
-	if at.distance_to(_player.global_position) < min_player_distance:
-		at = rect.get_center() * 2.0 - at
+	for player in _players:
+		if not player.health.is_dead() and at.distance_to(player.global_position) < min_player_distance:
+			at = rect.get_center() * 2.0 - at
+			break
 	return at

@@ -15,6 +15,8 @@ static var player_name := ""
 ## The daily challenge being played, as "YYYY-MM-DD". Kept across restarts, so a run that
 ## crosses midnight replays the same challenge.
 static var challenge_day := ""
+## Tests set this; otherwise `--bots=N` on the command line decides (development only).
+static var bots_override := -1
 ## Tests point this elsewhere so they never overwrite the player's saved name.
 static var profile_path := "user://profile.cfg"
 
@@ -35,6 +37,16 @@ static func daily_seed(day: String) -> int:
 static func daily_label(day: String) -> String:
 	var parts := day.split("-")
 	return "%d/%d" % [int(parts[2]), int(parts[1])]
+
+
+## Bot teammates to add to Arcade and the daily challenge (0 to 3).
+static func bot_count() -> int:
+	if bots_override >= 0:
+		return bots_override
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--bots="):
+			return clampi(int(arg.get_slice("=", 1)), 0, SurvivalMode.MAX_PLAYERS - 1)
+	return 0
 
 
 static func clean_name(raw: String) -> String:

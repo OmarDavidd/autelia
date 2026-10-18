@@ -8,10 +8,15 @@ extends CharacterBody2D
 @export var contact_damage := 10.0
 @export var radius := 16.0
 
+## How often (in physics frames) an enemy looks again for the nearest living player.
+const RETARGET_FRAMES := 15
+
 @onready var health: Health = $Health
 
 var target: Player
 var flash := 0.0
+
+var _retarget_in := 0
 
 
 func _ready() -> void:
@@ -22,8 +27,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	flash = maxf(flash - delta, 0.0)
-	if not is_instance_valid(target):
-		target = get_tree().get_first_node_in_group("player") as Player
+	_retarget_in -= 1
+	if _retarget_in <= 0 or not is_instance_valid(target) or target.health.is_dead():
+		target = _nearest_player()
+		_retarget_in = RETARGET_FRAMES
 
 	if target and not target.health.is_dead():
 		velocity = desired_velocity(delta)
@@ -32,6 +39,18 @@ func _physics_process(delta: float) -> void:
 		velocity = velocity.move_toward(Vector2.ZERO, acceleration * delta)
 	move_and_slide()
 	queue_redraw()
+
+
+## The closest player still standing, or null when the whole team is down.
+func _nearest_player() -> Player:
+	var best: Player
+	for player: Player in get_tree().get_nodes_in_group("player"):
+		if player.health.is_dead():
+			continue
+		if best == null or global_position.distance_squared_to(player.global_position) \
+				< global_position.distance_squared_to(best.global_position):
+			best = player
+	return best
 
 
 ## Override in subclasses. Called only while there is a living target.

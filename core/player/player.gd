@@ -4,6 +4,8 @@ extends CharacterBody2D
 ## Intentions come from `input` (keyboard and mouse by default, a bot, later the network).
 
 const RADIUS := 16.0
+## Invulnerability after reviving, so the player is not knocked down again on arrival.
+const REVIVE_GRACE := 1.5
 
 @export var speed := 260.0
 @export var acceleration := 2200.0
@@ -12,6 +14,11 @@ const RADIUS := 16.0
 ## When finite, the player aims here instead of where its input says (captures, touch sticks).
 var aim_override := Vector2.INF
 var input: PlayerInput = LocalInput.new()
+## Body color; co-op players each get their own.
+var color := Palette.PLAYER
+
+var _collision_layer := 0
+var _death_tween: Tween
 
 ## Invisible aim pivot: rotates toward the aim and carries the weapon.
 @onready var body: Node2D = $Body
@@ -22,6 +29,8 @@ var input: PlayerInput = LocalInput.new()
 
 func _ready() -> void:
 	add_to_group("player")
+	look.color = color
+	_collision_layer = collision_layer
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 
@@ -51,14 +60,34 @@ func _on_damaged(amount: float, current: float) -> void:
 	Events.player_damaged.emit(amount, current)
 
 
+## Back from being down with part of the health (co-op: at the start of the next wave).
+func revive(fraction := 0.5) -> void:
+	if _death_tween:
+		_death_tween.kill()
+	health.current = health.max_health * fraction
+	health.invulnerable_left = REVIVE_GRACE
+	collision_layer = _collision_layer
+	look.scale = Vector2.ONE
+	look.modulate.a = 1.0
+	set_physics_process(true)
+	Events.player_revived.emit(self)
+
+
 func _on_died() -> void:
-	Events.player_died.emit()
+	Events.player_down.emit(self)
+	# The run is over only when nobody else is standing.
+	var team_standing := get_tree().get_nodes_in_group("player").any(
+		func(other: Player) -> bool: return other != self and not other.health.is_dead())
+	if not team_standing:
+		Events.player_died.emit()
 	set_physics_process(false)
+	# Down players neither block enemies nor get hit.
+	collision_layer = 0
 	velocity = Vector2.ZERO
 	look.modulate.a = 1.0
-	DeathBurst.spawn(self, Palette.PLAYER)
+	DeathBurst.spawn(self, color)
 	# Squash, then deflate and fade out.
-	var tween := create_tween()
-	tween.tween_property(look, "scale", Vector2(1.45, 0.55), 0.12)
-	tween.tween_property(look, "scale", Vector2(0.2, 0.2), 0.35).set_ease(Tween.EASE_IN)
-	tween.parallel().tween_property(look, "modulate:a", 0.0, 0.35)
+	_death_tween = create_tween()
+	_death_tween.tween_property(look, "scale", Vector2(1.45, 0.55), 0.12)
+	_death_tween.tween_property(look, "scale", Vector2(0.2, 0.2), 0.35).set_ease(Tween.EASE_IN)
+	_death_tween.parallel().tween_property(look, "modulate:a", 0.0, 0.35)

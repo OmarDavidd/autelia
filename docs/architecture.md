@@ -19,7 +19,7 @@ never changes gameplay in return.
 | Folder | Owns | Must not know about |
 |---|---|---|
 | `autoload/` | `Events` signal bus, `DebugTools` (F12 screenshots) | anything else |
-| `core/` | player, enemies, combat (weapon, bullet, health), arena, palette and drawing helpers | difficulty, telemetry |
+| `core/` | player and its input sources (`LocalInput`, `ScriptedInput`, `BotInput`), enemies, combat (weapon, bullet, health), arena, palette and drawing helpers | difficulty, telemetry |
 | `modes/` | game rules. `survival/` runs timed waves and owns the run's seeded RNG; `arcade/` keeps the score; `GameSession` holds the mode and name chosen in the menu | how difficulty is chosen |
 | `difficulty/` | `DifficultyParams` (d → parameters), `DifficultyDirector`, controllers | gameplay nodes |
 | `telemetry/` | `TelemetryRecorder`: one CSV row per wave | gameplay logic |
@@ -39,6 +39,18 @@ touchscreens it also adds `TouchControls`, which feed the same input actions as 
 and aim through `Player.aim_override`, so the core never knows which device is playing.
 The daily challenge also reseeds the run from the day (`GameSession.daily_seed`) and points
 the `Leaderboard` at that day's table.
+
+## Players and co-op
+
+A player never reads devices: it asks its `PlayerInput` where to move, where to aim and
+whether to shoot. This machine's player uses `LocalInput` (keyboard, mouse, touch sticks);
+teammates use `ScriptedInput` (tests, and network messages later) or `BotInput`.
+
+`SurvivalMode.players` holds up to four players, each in its own color. Enemies chase the
+nearest living player and spawn away from every living player. When a player falls,
+`Events.player_down` fires; it revives with half health when the next wave starts.
+`Events.player_died` keeps its meaning of "the run is over": it fires only when nobody is
+left standing, so single-player code and tests are unchanged.
 
 ## Difficulty
 

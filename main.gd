@@ -39,6 +39,24 @@ func _apply_mode() -> void:
 	survival.add_child(keeper)
 	survival.hud.show_score(keeper)
 
+	# Development only: bot teammates to try co-op without a network. Such runs are not
+	# comparable, so they never reach the leaderboard.
+	var bots := GameSession.bot_count()
+	for i in bots:
+		survival.add_player(BotInput.new())
+	if bots > 0:
+		survival.hud.board.show_note("Partida con bots: no entra en la tabla")
+	else:
+		_connect_leaderboard(day)
+
+	if TouchControls.wanted():
+		var touch := TouchControls.new()
+		touch.name = "TouchControls"
+		add_child(touch)
+		touch.bind(survival)
+
+
+func _connect_leaderboard(day: String) -> void:
 	leaderboard = Leaderboard.new()
 	leaderboard.day = day
 	add_child(leaderboard)
@@ -53,12 +71,6 @@ func _apply_mode() -> void:
 	preview.failed.connect(_on_preview_failed)
 	preview.fetch_top()
 
-	if TouchControls.wanted():
-		var touch := TouchControls.new()
-		touch.name = "TouchControls"
-		add_child(touch)
-		touch.bind(survival)
-
 
 func _on_player_died() -> void:
 	var keeper: ScoreKeeper = survival.get_node("Score")
@@ -66,12 +78,12 @@ func _on_player_died() -> void:
 
 
 func _on_preview_loaded(rows: Array) -> void:
-	if not survival.player.health.is_dead():
+	if not survival.is_over():
 		_on_top_loaded(rows)
 
 
 func _on_preview_failed() -> void:
-	if not survival.player.health.is_dead():
+	if not survival.is_over():
 		survival.hud.show_leaderboard_error()
 
 

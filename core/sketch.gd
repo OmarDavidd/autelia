@@ -68,12 +68,13 @@ static func _diamond_box(fill: Color) -> StyleBoxFlat:
 # Character art. Each function draws around `at`, scaled by `size`; `pop` swells the body
 # (hit feedback) but not the shadow. They all leave the identity transform when done.
 
-static func draw_player(ci: CanvasItem, aim: Vector2, at := Vector2.ZERO, size := 1.0) -> void:
+static func draw_player(ci: CanvasItem, aim: Vector2, at := Vector2.ZERO, size := 1.0,
+		fill := Palette.PLAYER) -> void:
 	var r := Palette.ART_RADIUS
 	ci.draw_set_transform(at, 0.0, Vector2.ONE * size)
 	hatch_shadow(ci, Vector2(0.0, r + 6.0), r - 2.0)
 	capsule(ci, aim * (r - 6.0), aim * (r + 12.0), 11.0, Palette.INK)
-	blob(ci, Vector2.ZERO, r, Palette.PLAYER)
+	blob(ci, Vector2.ZERO, r, fill)
 	eyes(ci, Vector2(0.0, -4.0), aim, 6.0, Vector2(4.0, 5.5))
 	var blush := Color(Palette.ENEMY, 0.45)
 	ellipse(ci, Vector2(-10.0, 5.0), Vector2(3.2, 2.0), blush)

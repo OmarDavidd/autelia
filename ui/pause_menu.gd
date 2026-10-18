@@ -27,7 +27,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Pausing is allowed while playing: not during game over, nor while another screen
 ## (the main menu) already holds the pause.
 func can_pause() -> bool:
-	return not mode.player.health.is_dead() and not get_tree().paused
+	return not mode.is_over() and not get_tree().paused
 
 
 func toggle() -> void:
