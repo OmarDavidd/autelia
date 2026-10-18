@@ -39,6 +39,7 @@ func _run() -> void:
 	await _down_revive_and_wipe()
 	await _spawn_point_uses_two_draws()
 	await _bots_join_arcade_without_the_leaderboard()
+	await _bots_play_like_people()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 	GameSession.mode = GameSession.Mode.EXPERIMENT
 	GameSession.bots_override = -1
@@ -228,14 +229,23 @@ func _bots_join_arcade_without_the_leaderboard() -> void:
 	await _frames(1)
 	_expect(mode.hud.down_label.visible, "the local player must be told they will revive")
 	_expect(not mode.hud.game_over_panel.visible, "game over shown while a bot stands")
+	Events.wave_started.emit(2)
+	await _frames(1)
+	_expect(is_equal_approx(mode.hud.health_bar.value, mode.player.health.max_health * 0.5),
+		"the health bar must show half health after reviving, got %.0f" % mode.hud.health_bar.value)
+	_expect(not mode.hud.down_label.visible, "the revive message must go away")
 
 	# A bot aims at and shoots the nearest enemy.
 	var bot: Player = mode.players[2]
 	var chaser: Enemy = load(CHASER).instantiate()
 	chaser.position = bot.global_position + Vector2(250, 0)
 	mode.enemies.add_child(chaser)
-	await _frames(3)
-	_expect(bot.input.wants_to_shoot(bot), "a bot with an enemy in sight must shoot")
+	chaser.health.invulnerable_left = 99999.0
+	var fired := false
+	for i in BotInput.BURST_FRAMES + BotInput.REST_FRAMES:
+		await _frames(1)
+		fired = fired or bot.input.wants_to_shoot(bot)
+	_expect(fired, "a bot with an enemy in sight must shoot")
 	var aim := (bot.input.aim_point(bot) - bot.global_position).normalized()
 	_expect(aim.dot((chaser.global_position - bot.global_position).normalized()) > 0.95, "a bot must aim at the nearest enemy")
 
@@ -250,3 +260,51 @@ func _bots_join_arcade_without_the_leaderboard() -> void:
 		"bots stacked on each other: %.1f apart" % a.global_position.distance_to(bot.global_position))
 	main.queue_free()
 	await _frames(2)
+
+
+## Bots react late, miss a little and fire in bursts, so they help without carrying the team.
+func _bots_play_like_people() -> void:
+	var a := BotInput.new(Vector2(640, 360), 7)
+	var b := BotInput.new(Vector2(640, 360), 7)
+	_expect(a.split_direction == b.split_direction, "the same seed must give the same bot")
+	_expect(a.split_direction != BotInput.new(Vector2(640, 360), 8).split_direction, "different seeds must give different bots")
+
+	var mode := _make_run()
+	await _frames(1)
+	mode.player.global_position = Vector2(100, 650)
+	var bot := mode.add_player(BotInput.new(Vector2(640, 360), 3))
+	bot.global_position = Vector2(400, 360)
+	bot.health.invulnerable_left = 999.0
+	var far: Enemy = load(CHASER).instantiate()
+	far.position = Vector2(1100, 360)
+	mode.enemies.add_child(far)
+	far.set_physics_process(false)
+	far.health.invulnerable_left = 99999.0
+	await _frames(BotInput.REACTION_FRAMES + 2)
+
+	var shooting := 0
+	var total_error := 0.0
+	var samples := 120
+	for i in samples:
+		await _frames(1)
+		bot.global_position = Vector2(400, 360)
+		if bot.input.wants_to_shoot(bot):
+			shooting += 1
+		var aim := (bot.input.aim_point(bot) - bot.global_position).normalized()
+		total_error += absf(rad_to_deg(aim.angle_to(far.global_position - bot.global_position)))
+	var ratio := float(shooting) / samples
+	_expect(ratio > 0.4 and ratio < 0.85, "bots must fire in bursts, fired %.0f%% of the time" % (ratio * 100.0))
+	var mean_error := total_error / samples
+	_expect(mean_error > 1.0 and mean_error <= BotInput.AIM_ERROR_DEGREES, "bot aim error %.1f deg" % mean_error)
+
+	# A closer enemy is noticed only after the reaction time.
+	var near: Enemy = load(CHASER).instantiate()
+	near.position = Vector2(480, 360)
+	mode.enemies.add_child(near)
+	near.set_physics_process(false)
+	near.health.invulnerable_left = 99999.0
+	await _frames(2)
+	_expect(bot.input.target == far, "a bot must not switch targets instantly")
+	await _frames(BotInput.REACTION_FRAMES + 2)
+	_expect(bot.input.target == near, "a bot must switch to the nearer enemy after reacting")
+	await _free(mode)

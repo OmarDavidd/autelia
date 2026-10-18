@@ -44,12 +44,12 @@ func markers() -> Array[Dictionary]:
 		var center := inner.get_center()
 		var dir := (on_screen - center).normalized()
 		# Walk from the center toward the teammate until the edge of the inner rect.
-		var scale := INF
+		var reach := INF
 		if dir.x != 0.0:
-			scale = minf(scale, (inner.size.x * 0.5) / absf(dir.x))
+			reach = minf(reach, (inner.size.x * 0.5) / absf(dir.x))
 		if dir.y != 0.0:
-			scale = minf(scale, (inner.size.y * 0.5) / absf(dir.y))
-		result.append({"at": center + dir * scale, "dir": dir, "color": mate.color})
+			reach = minf(reach, (inner.size.y * 0.5) / absf(dir.y))
+		result.append({"at": center + dir * reach, "dir": dir, "color": mate.color})
 	return result
 
 

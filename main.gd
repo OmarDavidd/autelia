@@ -49,7 +49,7 @@ func _apply_mode() -> void:
 	# comparable, so they never reach the leaderboard.
 	var bots := GameSession.bot_count()
 	for i in bots:
-		survival.add_player(BotInput.new())
+		survival.add_player(BotInput.new(Vector2(640, 360), survival.used_seed + i + 1))
 	if bots > 0:
 		survival.hud.board.show_note("Partida con bots: no entra en la tabla")
 	else:
@@ -84,9 +84,9 @@ func _apply_coop() -> void:
 	survival.add_child(keeper)
 	survival.hud.show_score(keeper)
 	survival.hud.board.show_note("El cooperativo todavía no tiene tabla")
-	for entry in room.players.slice(1):
-		if entry.bot:
-			survival.add_player(BotInput.new(center))
+	for i in range(1, count):
+		if room.players[i].bot:
+			survival.add_player(BotInput.new(center, survival.used_seed + i))
 
 	survival.get_node("Camera").enabled = false
 	camera = FollowCamera.new()
