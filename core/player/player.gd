@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody2D
-## Top-down player: free movement with acceleration, aims at the mouse, holds to shoot.
+## Top-down player: free movement with acceleration, aims and holds to shoot.
+## Intentions come from `input` (keyboard and mouse by default, a bot, later the network).
 
 const RADIUS := 16.0
 
@@ -8,8 +9,9 @@ const RADIUS := 16.0
 @export var acceleration := 2200.0
 @export var friction := 2600.0
 
-## When finite, the player aims here instead of at the mouse (scripted captures, bots).
+## When finite, the player aims here instead of where its input says (captures, touch sticks).
 var aim_override := Vector2.INF
+var input: PlayerInput = LocalInput.new()
 
 ## Invisible aim pivot: rotates toward the aim and carries the weapon.
 @onready var body: Node2D = $Body
@@ -25,15 +27,15 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	var rate := acceleration if input != Vector2.ZERO else friction
-	velocity = velocity.move_toward(input * speed, rate * delta)
+	var move := input.move_vector(self)
+	var rate := acceleration if move != Vector2.ZERO else friction
+	velocity = velocity.move_toward(move * speed, rate * delta)
 	move_and_slide()
 
-	var aim_at := aim_override if aim_override.is_finite() else get_global_mouse_position()
+	var aim_at := aim_override if aim_override.is_finite() else input.aim_point(self)
 	body.rotation = (aim_at - global_position).angle()
 	look.set_aim(Vector2.RIGHT.rotated(body.rotation))
-	if Input.is_action_pressed("shoot"):
+	if input.wants_to_shoot(self):
 		weapon.try_fire()
 
 	# Blink while invulnerable so the player can read the grace period.
