@@ -37,7 +37,7 @@ func _run() -> void:
 	await _scripted_input_drives_the_player()
 	await _players_get_colors_and_enemies_chase_the_nearest()
 	await _down_revive_and_wipe()
-	_spawn_point_uses_two_draws()
+	await _spawn_point_uses_two_draws()
 	await _bots_join_arcade_without_the_leaderboard()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 	GameSession.mode = GameSession.Mode.EXPERIMENT
@@ -180,7 +180,21 @@ func _spawn_point_uses_two_draws() -> void:
 	mode.rng.seed = 99
 	spawner._pick_position()
 	_expect(mode.rng.state == reference.state, "a spawn point must use exactly two RNG draws with several players")
+
+	# A point too close to one player, whose mirror lands on another, must avoid both.
+	var rect := mode.arena.play_rect().grow(-40.0)
+	var raw_rng := RandomNumberGenerator.new()
+	raw_rng.seed = 1234
+	var raw := Vector2(raw_rng.randf_range(rect.position.x, rect.end.x), raw_rng.randf_range(rect.position.y, rect.end.y))
+	mode.player.global_position = raw
+	extra.global_position = rect.get_center() * 2.0 - raw
+	mode.rng.seed = 1234
+	var at := spawner._pick_position()
+	var nearest := minf(at.distance_to(mode.player.global_position), at.distance_to(extra.global_position))
+	_expect(nearest >= spawner.min_player_distance,
+		"spawn landed %.0f px from a player (min %.0f)" % [nearest, spawner.min_player_distance])
 	mode.queue_free()
+	await _frames(2)
 
 
 func _bots_join_arcade_without_the_leaderboard() -> void:

@@ -137,8 +137,34 @@ func _pick_position() -> Vector2:
 	var at := Vector2(
 		_rng.randf_range(rect.position.x, rect.end.x),
 		_rng.randf_range(rect.position.y, rect.end.y))
+	if _distance_to_players(at) >= min_player_distance:
+		return at
+	var mirrored := rect.get_center() * 2.0 - at
+	if _players.size() == 1:
+		# Solo play keeps its original rule, so seeded solo runs replay exactly as before.
+		return mirrored
+	# Co-op: the mirror may land on another player, so also try flipping one axis at a time
+	# and, as a last resort, the corners and edge midpoints of the arena. Keeps whichever is
+	# farthest from everybody. No extra RNG draws.
+	var candidates: Array[Vector2] = [mirrored, Vector2(mirrored.x, at.y), Vector2(at.x, mirrored.y)]
+	var best := mirrored
+	for candidate in candidates:
+		if _distance_to_players(candidate) > _distance_to_players(best):
+			best = candidate
+	if _distance_to_players(best) >= min_player_distance:
+		return best
+	var c := rect.get_center()
+	for candidate in [rect.position, Vector2(rect.end.x, rect.position.y), rect.end,
+			Vector2(rect.position.x, rect.end.y), Vector2(c.x, rect.position.y), Vector2(c.x, rect.end.y),
+			Vector2(rect.position.x, c.y), Vector2(rect.end.x, c.y)]:
+		if _distance_to_players(candidate) > _distance_to_players(best):
+			best = candidate
+	return best
+
+
+func _distance_to_players(at: Vector2) -> float:
+	var nearest := INF
 	for player in _players:
-		if not player.health.is_dead() and at.distance_to(player.global_position) < min_player_distance:
-			at = rect.get_center() * 2.0 - at
-			break
-	return at
+		if not player.health.is_dead():
+			nearest = minf(nearest, at.distance_to(player.global_position))
+	return nearest

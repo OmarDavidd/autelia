@@ -46,7 +46,7 @@ A player never reads devices: it asks its `PlayerInput` where to move, where to 
 whether to shoot. This machine's player uses `LocalInput` (keyboard, mouse, touch sticks);
 teammates use `ScriptedInput` (tests, and network messages later) or `BotInput`.
 
-`SurvivalMode.players` holds up to four players, each in its own color. Enemies chase the
+`SurvivalMode.players` holds up to eight players, each in its own color. Enemies chase the
 nearest living player and spawn away from every living player. When a player falls,
 `Events.player_down` fires; it revives with half health when the next wave starts.
 `Events.player_died` keeps its meaning of "the run is over": it fires only when nobody is
