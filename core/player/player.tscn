@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://core/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://core/player/player_body.gd" id="2_body"]
+[ext_resource type="Script" path="res://core/combat/weapon.gd" id="3_weapon"]
+[ext_resource type="Script" path="res://core/combat/health.gd" id="4_health"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_player"]
+radius = 16.0
+
+[node name="Player" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+motion_mode = 1
+script = ExtResource("1_player")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_player")
+
+[node name="Body" type="Node2D" parent="."]
+script = ExtResource("2_body")
+
+[node name="Weapon" type="Node2D" parent="Body"]
+position = Vector2(26, 0)
+script = ExtResource("3_weapon")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("4_health")
+invulnerability_time = 0.6
