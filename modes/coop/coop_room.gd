@@ -55,7 +55,8 @@ static func from_dict(data: Variant, you_id: int) -> CoopRoom:
 	for entry: Variant in data.players:
 		if not entry is Dictionary:
 			return null
-		room.players.append({"id": int(entry.get("id", 0)), "name": str(entry.get("name", "")),
+		var id: Variant = entry.get("id")
+		room.players.append({"id": int(id) if id is float or id is int else 0, "name": str(entry.get("name", "")),
 			"host": entry.get("host", false) == true, "bot": entry.get("bot", false) == true})
 	return room
 

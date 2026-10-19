@@ -1,9 +1,11 @@
 extends Node
 ## Co-op mode smoke test (stage 2a, offline): room and invite code, lobby with bots,
 ## arena sized by players, following camera, teammate markers and crowd scaling.
+## The server address points at a closed local port, so Crear falls back to a local room.
 ## Run: godot --headless --path . tests/smoke_coop_mode.tscn
 
 const PROFILE := "user://test_profile.cfg"
+const NO_SERVER := "ws://127.0.0.1:9"
 
 var failures: Array[String] = []
 
@@ -17,6 +19,15 @@ func _frames(count: int) -> void:
 		await get_tree().physics_frame
 
 
+## Waits until `condition` holds, up to `limit` frames; false if it never did.
+func _until(condition: Callable, limit := 240) -> bool:
+	for i in limit:
+		if condition.call():
+			return true
+		await get_tree().process_frame
+	return condition.call()
+
+
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		failures.append(message)
@@ -25,6 +36,7 @@ func _expect(condition: bool, message: String) -> void:
 func _run() -> void:
 	GameSession.profile_path = PROFILE
 	Leaderboard.enabled = false
+	RoomClient.url_override = NO_SERVER
 	GameSession.save_name("Ana")
 	_room_and_codes()
 	_rules_scale_with_players()
@@ -35,6 +47,7 @@ func _run() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
 	GameSession.mode = GameSession.Mode.EXPERIMENT
 	GameSession.coop_room = null
+	RoomClient.url_override = ""
 
 	get_tree().paused = false
 	if failures.is_empty():
@@ -108,8 +121,9 @@ func _lobby_to_a_running_coop_game() -> void:
 	menu.show_coop()
 	_expect(menu.coop_name_input.text == "Ana", "co-op page must reuse the remembered name")
 	_expect(menu.create_room(), "creating a room failed")
+	_expect(await _until(func() -> bool: return GameSession.coop_room != null), "no local room without a server")
+	_expect(menu.lobby_code_label.text == "Sala local", "lobby must say the room is local: %s" % menu.lobby_code_label.text)
 	var room: CoopRoom = GameSession.coop_room
-	_expect(room != null and menu.lobby_code_label.text.contains(room.code), "lobby must show the invite code")
 	_expect(menu.lobby_rows.get_child_count() == 1, "lobby must list the host")
 	_expect(menu.start_button.visible, "the host must be able to start")
 	menu.add_bot_to_room()
@@ -161,7 +175,9 @@ func _join_reports_no_server() -> void:
 	_expect(not menu.join_room(), "a short code joined")
 	_expect(menu.coop_error.visible and menu.coop_error.text == "El código tiene 4 letras", "short code error: %s" % menu.coop_error.text)
 	menu.coop_code_input.text = "kxqp"
-	_expect(not menu.join_room(), "joined without a server")
+	_expect(menu.join_room(), "a valid code must be sent to the server")
+	_expect(await _until(func() -> bool: return menu.coop_error.visible), "no error without a server")
+	_expect(GameSession.coop_room == null, "joining without a server must not open a room")
 	_expect(menu.coop_error.text == "No se pudo conectar al servidor", "offline join error: %s" % menu.coop_error.text)
 	main.queue_free()
 	await _frames(2)

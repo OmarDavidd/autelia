@@ -55,8 +55,16 @@ left standing, so single-player code and tests are unchanged.
 The Cooperativo mode (`modes/coop/`) starts from a `CoopRoom` (invite code and roster, up to
 eight). `CoopRules` sizes the arena (`Arena.resize`) and the enemy crowd (`WaveSpawner.crowd`)
 by the number of players. A `FollowCamera` keeps this machine's player centered within the
-arena, and `TeammateMarkers` point to teammates off screen. Rooms are local for now; the game
-server will own them.
+arena, and `TeammateMarkers` point to teammates off screen.
+
+Rooms live on the game server (`server/room_server.gd`, headless entry `server/server.tscn`):
+plain WebSocket with one JSON object per message, so one process serves many rooms. It
+creates codes, lets players join at any time (also mid-run), hands the host role on and
+closes empty rooms; host-only messages (`add_bot`, `start`) from others are ignored. It is
+internet-facing behind the tunnel, so it checks every message (type, name, code, size) and
+caps peers and rooms. `RoomClient` (`online/`) is this machine's link, kept under the tree
+root so it outlives the menu; every room the server sends goes through `CoopRoom.from_dict`.
+Without a server, Crear opens a local `CoopRoom` where only bots can join.
 
 ## Difficulty
 

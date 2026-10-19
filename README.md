@@ -47,7 +47,10 @@ El menú principal ofrece:
 - **Modos → Cooperativo** *(en construcción)*: creas una sala con un código de 4 letras y los
   demás se unen desde el lobby, hasta 8 jugadores. El mapa crece con la cantidad de jugadores
   y la cámara te sigue; la dificultad también sube con el equipo. Quien cae vuelve en la
-  próxima oleada. Por ahora se juega con bots: unirse por internet llega con el servidor.
+  próxima oleada. Las salas viven en el servidor del juego: se puede entrar con el código
+  incluso con la partida empezada, y solo el anfitrión suma bots y la inicia. Sin servidor se
+  abre una sala local, solo con bots. Ver a los demás jugadores en la partida llega en la
+  próxima etapa.
 - **Modos → Arcade:** escribes un nombre (sin cuenta ni contraseña) y cada oleada es más difícil.
   Sumas 10 puntos por perseguidor, 20 por tirador y 50 × el número de oleada por cada oleada
   que sobrevives. Al morir, el puntaje se sube a una **tabla global** con los 10 mejores.
@@ -85,6 +88,15 @@ godot --path . -- --mute                                          # sin sonido
 | `--mute` | Desactiva el sonido |
 | `--touch` | Muestra los controles táctiles del Arcade aunque no haya pantalla táctil |
 | `--bots=N` | Suma de 1 a 3 compañeros bot al Arcade para probar el cooperativo (esas partidas no entran en la tabla) |
+| `--server=URL` | Servidor de salas del cooperativo (por defecto `wss://juego.omard.space`), p. ej. `ws://127.0.0.1:8910` |
+
+### Servidor del cooperativo
+
+```sh
+godot --headless --path . server/server.tscn -- --port=8910 --bind=127.0.0.1
+```
+
+Escucha solo en esta máquina por defecto; el túnel de Cloudflare lleva a los jugadores hasta él.
 
 ## Dificultad
 
@@ -165,7 +177,7 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 ## Pruebas y herramientas
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade, touch, daily, coop y coop_mode
+godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade, touch, daily, coop, coop_mode, coop_online y room_server
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
 ```

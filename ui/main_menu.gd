@@ -23,6 +23,7 @@ var coop_name_input: LineEdit
 var coop_code_input: LineEdit
 var coop_error: Label
 var lobby_code_label: Label
+var lobby_hint: Label
 var lobby_rows: VBoxContainer
 var start_button: Button
 var _add_bot_button: Button
@@ -47,6 +48,11 @@ var _about: Control
 var _scores: Control
 var _coop: Control
 var _lobby: Control
+## The link to the room server while this menu waits on it or shows a server room;
+## null with a local room.
+var _client: RoomClient
+## Crear is waiting: an unreachable server then opens a local room instead of failing.
+var _creating := false
 
 
 func _ready() -> void:
@@ -92,37 +98,121 @@ func show_coop() -> void:
 	_show(_coop)
 
 
-## Creates a room with this player as host and opens its lobby.
+## Asks the server for a room with this player as host; its lobby opens when it answers.
+## Without a server it opens a local room, where only bots can join.
 func create_room() -> bool:
 	var player_name := _coop_name()
 	if player_name.is_empty():
 		return false
-	GameSession.coop_room = CoopRoom.create(player_name)
-	GameSession.coop_room.changed.connect(_refresh_lobby)
-	_refresh_lobby()
-	_show(_lobby)
+	_creating = true
+	coop_error.visible = false
+	_use_server().create(player_name)
 	return true
 
 
-## Joining needs the game server, which arrives in the next stage.
+## Asks the server to join; the lobby (or the run, if it already started) opens when it answers.
 func join_room() -> bool:
-	if _coop_name().is_empty():
+	var player_name := _coop_name()
+	if player_name.is_empty():
 		return false
 	if not CoopRoom.is_valid_code(coop_code_input.text):
 		_coop_fail("El código tiene %d letras" % CoopRoom.CODE_LENGTH)
 		return false
-	_coop_fail("No se pudo conectar al servidor")
-	return false
+	_creating = false
+	coop_error.visible = false
+	_use_server().join(CoopRoom.clean_code(coop_code_input.text), player_name)
+	return true
 
 
 func add_bot_to_room() -> void:
-	if GameSession.coop_room:
+	if _client:
+		_client.add_bot()
+	elif GameSession.coop_room:
 		GameSession.coop_room.add_bot()
 
 
+## The host starts: a local room right away, a server room once the server tells everyone.
 func start_coop() -> void:
+	if _client:
+		_client.start()
+	else:
+		_enter_coop()
+
+
+func leave_room() -> void:
+	if _client:
+		_client.leave()
+		_client = null
+	GameSession.coop_room = null
+	show_coop()
+
+
+func _enter_coop() -> void:
 	GameSession.mode = GameSession.Mode.COOP
 	_start()
+
+
+func _use_server() -> RoomClient:
+	if _client == null:
+		_client = RoomClient.shared(get_tree())
+		_client.room_changed.connect(_on_server_room)
+		_client.failed.connect(_on_server_failed)
+		_client.disconnected.connect(_on_server_lost)
+	return _client
+
+
+func _forget_server() -> void:
+	if _client:
+		_client.room_changed.disconnect(_on_server_room)
+		_client.failed.disconnect(_on_server_failed)
+		_client.disconnected.disconnect(_on_server_lost)
+		_client = null
+
+
+func _on_server_room(room: CoopRoom) -> void:
+	GameSession.coop_room = room
+	if room.started:
+		_enter_coop()
+		return
+	_refresh_lobby()
+	_show(_lobby)
+
+
+func _on_server_failed(reason: String) -> void:
+	if reason == "unreachable":
+		_forget_server()
+		if _creating:
+			GameSession.coop_room = CoopRoom.create(GameSession.player_name)
+			GameSession.coop_room.changed.connect(_refresh_lobby)
+			_refresh_lobby()
+			_show(_lobby)
+			return
+	_show(_coop)
+	_coop_fail(server_error(reason))
+
+
+func _on_server_lost() -> void:
+	_forget_server()
+	GameSession.coop_room = null
+	_show(_coop)
+	_coop_fail("Se perdió la conexión con el servidor")
+
+
+static func server_error(reason: String) -> String:
+	match reason:
+		"unreachable":
+			return "No se pudo conectar al servidor"
+		"not_found":
+			return "No existe una sala con ese código"
+		"full":
+			return "La sala está llena"
+		"busy":
+			return "El servidor está lleno, prueba más tarde"
+		"bad_name":
+			return "El nombre debe tener entre %d y %d caracteres" % [GameSession.NAME_MIN, GameSession.NAME_MAX]
+		"bad_code":
+			return "El código tiene %d letras" % CoopRoom.CODE_LENGTH
+	return "El servidor rechazó la solicitud"
 
 
 ## The validated, remembered name, or "" after showing why it is not valid.
@@ -143,7 +233,13 @@ func _coop_fail(message: String) -> void:
 
 func _refresh_lobby() -> void:
 	var room: CoopRoom = GameSession.coop_room
-	lobby_code_label.text = "Código: %s" % room.code
+	if _client:
+		lobby_code_label.text = "Código: %s" % room.code
+		lobby_hint.text = "Comparte el código para que se unan." if room.is_host() \
+			else "Esperando a que el anfitrión empiece."
+	else:
+		lobby_code_label.text = "Sala local"
+		lobby_hint.text = "Sin conexión al servidor: solo puedes sumar bots."
 	for child in lobby_rows.get_children():
 		child.free()
 	for i in room.players.size():
@@ -156,10 +252,13 @@ func _refresh_lobby() -> void:
 		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(swatch)
 		var label := UiStyle.label(HORIZONTAL_ALIGNMENT_LEFT, 22)
-		label.text = entry.name + (" (anfitrión)" if entry.host else " (bot)" if entry.bot else "")
+		label.text = entry.name + (" (anfitrión)" if entry.host else " (bot)" if entry.bot else "") \
+			+ (" · tú" if not entry.bot and entry.id == room.you else "")
 		row.add_child(label)
 		lobby_rows.add_child(row)
 	_add_bot_button.disabled = room.is_full()
+	_add_bot_button.visible = room.is_host()
+	start_button.visible = room.is_host()
 
 
 func show_modes() -> void:
@@ -191,6 +290,11 @@ func _open_run_page(daily: bool) -> void:
 	if _run_leaderboard:
 		_run_leaderboard.queue_free()
 	_run_leaderboard = _fetch_into(board, today if daily else "")
+
+
+## The shared client outlives the menu; drop the menu's listeners with it.
+func _exit_tree() -> void:
+	_forget_server()
 
 
 func _start() -> void:
@@ -415,10 +519,9 @@ func _build_lobby() -> Control:
 	lobby_code_label = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 34)
 	lobby_code_label.add_theme_font_override("font", UiStyle.font(700))
 	column.add_child(lobby_code_label)
-	var hint := UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 20)
-	hint.text = "Comparte el código para que se unan."
-	hint.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
-	column.add_child(hint)
+	lobby_hint = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 20)
+	lobby_hint.add_theme_color_override("font_color", Color(Palette.INK, 0.7))
+	column.add_child(lobby_hint)
 	lobby_rows = VBoxContainer.new()
 	lobby_rows.add_theme_constant_override("separation", 6)
 	lobby_rows.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -433,9 +536,7 @@ func _build_lobby() -> Control:
 	column.add_child(start_button)
 	var leave := UiStyle.button("Salir de la sala", 320)
 	leave.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	leave.pressed.connect(func() -> void:
-		GameSession.coop_room = null
-		show_coop())
+	leave.pressed.connect(leave_room)
 	column.add_child(leave)
 	return column.get_parent()
 
