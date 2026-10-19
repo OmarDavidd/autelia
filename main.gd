@@ -129,6 +129,13 @@ func _apply_gun_game() -> void:
 	add_child(hud)
 	hud.bind(gun_game, pause)
 
+	if TouchControls.wanted():
+		var touch := TouchControls.new()
+		touch.name = "TouchControls"
+		add_child(touch)
+		touch.bind_player(gun_game.local_player, pause)
+		hud.move_kill_feed_below(touch.pause_button.offset_bottom + 16.0)
+
 	camera = FollowCamera.new()
 	add_child(camera)
 	camera.follow(gun_game.local_player, Rect2(Vector2.ZERO, gun_game.arena.size))

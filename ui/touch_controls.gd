@@ -1,6 +1,6 @@
 class_name TouchControls
 extends CanvasLayer
-## On-screen controls for touchscreens (Arcade only): a floating move stick on the left half,
+## On-screen controls for touchscreens (Arcade, co-op and gun game): a floating move stick on the left half,
 ## an aim stick on the right half that fires while held, a pause button and, at game over,
 ## a restart button. Sticks feed the same input actions as the keyboard, and the aim goes
 ## through Player.aim_override, so the core never knows which device is playing.
@@ -63,10 +63,17 @@ func _notification(what: int) -> void:
 
 
 func bind(mode: SurvivalMode) -> void:
-	_player = mode.player
-	_pause_menu = mode.get_node("PauseMenu")
-	_hud = mode.hud
-	_mouse_hint = _hud.restart_hint
+	bind_player(mode.player, mode.get_node("PauseMenu"), mode.hud)
+
+
+## For modes without the survival HUD (gun game): the sticks drive `player`, the pause
+## button opens `pause_menu`, and the restart hint is left alone when there is no `hud`.
+func bind_player(player: Player, pause_menu: PauseMenu, hud: Hud = null) -> void:
+	_player = player
+	_pause_menu = pause_menu
+	_hud = hud
+	if _hud:
+		_mouse_hint = _hud.restart_hint
 
 
 ## Touch takes over shooting and aiming; the mouse gets them back when it is used again.
@@ -92,9 +99,16 @@ func _set_active(value: bool) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if not active or _player == null:
+		return
+	# A fallen player ignores touches, so a finger lifted meanwhile would never be seen:
+	# let go of everything now, or the sticks stay pressed after a revive or respawn.
+	if _player.health.is_dead():
+		if _move.index != -1 or _aim.index != -1:
+			_release_all()
+		return
 	# Keep the aim point ahead of the player as it moves.
-	if active and _player and not _player.health.is_dead():
-		_player.aim_override = _player.global_position + _aim_direction * AIM_REACH
+	_player.aim_override = _player.global_position + _aim_direction * AIM_REACH
 
 
 func _input(event: InputEvent) -> void:

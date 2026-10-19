@@ -33,6 +33,7 @@ func _run() -> void:
 	await _test_damage_events_are_local_only()
 	await _test_victory_freezes_the_match()
 	await _test_main_offers_pause_and_menu()
+	await _test_touch_controls_play_gun_game()
 
 	if failures.is_empty():
 		print("SMOKE OK: Gun Game arena, FFA combat, weapon tiers, bot AI, and victory flow passed!")
@@ -260,3 +261,60 @@ func _pressed_targets(button: Variant) -> Array[String]:
 		for connection in button.pressed.get_connections():
 			targets.append(connection.callable.get_method())
 	return targets
+
+
+func _touch(controls: TouchControls, index: int, at: Vector2, pressed: bool) -> void:
+	var event := InputEventScreenTouch.new()
+	event.index = index
+	event.position = at
+	event.pressed = pressed
+	controls._input(event)
+
+
+func _drag(controls: TouchControls, index: int, at: Vector2) -> void:
+	var event := InputEventScreenDrag.new()
+	event.index = index
+	event.position = at
+	controls._input(event)
+
+
+## On a phone the match is played with the same sticks as Arcade: they move and aim the
+## local player, the pause button pauses the match, and a fall lets go of every stick so
+## nothing stays pressed after the respawn.
+func _test_touch_controls_play_gun_game() -> void:
+	TouchControls.forced = true
+	GameSession.mode = GameSession.Mode.GUN_GAME
+	MainMenu.seen = true
+	var main: Node = load("res://main.tscn").instantiate()
+	add_child(main)
+	await _frames(3)
+	var controls: TouchControls = main.get_node_or_null("TouchControls")
+	_expect(controls != null, "a gun game on a touchscreen must show touch controls")
+	if controls:
+		var mode: GunGameMode = main.get_node("GunGame")
+		var player := mode.local_player
+		var hud: GunGameHud = main.get_node("GunGameHud")
+		_expect(hud.kill_feed_top() > controls.pause_button.offset_bottom,
+			"the kill feed must start below the pause button, at %.0f" % hud.kill_feed_top())
+		_touch(controls, 1, Vector2(1000, 400), true)
+		_drag(controls, 1, Vector2(1000, 490))
+		_expect(Input.is_action_pressed("shoot"), "the aim stick must fire")
+		_expect(player.aim_override.is_finite() and player.aim_override.y > player.global_position.y,
+			"the aim stick must aim the local player down: %s" % str(player.aim_override))
+		_touch(controls, 0, Vector2(200, 500), true)
+		_drag(controls, 0, Vector2(290, 500))
+		_expect(Input.is_action_pressed("move_right"), "the move stick must move the local player")
+
+		player.take_hit(10000.0)
+		await _frames(2)
+		_expect(not Input.is_action_pressed("shoot") and not Input.is_action_pressed("move_right"),
+			"a fall must let go of the sticks")
+
+		controls._toggle_pause()
+		_expect(get_tree().paused, "the pause button must pause the match")
+		get_tree().paused = false
+	main.queue_free()
+	TouchControls.forced = false
+	GameSession.mode = GameSession.Mode.EXPERIMENT
+	MainMenu.seen = false
+	await _frames(2)

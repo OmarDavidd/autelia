@@ -11,6 +11,7 @@ var _weapon_name_label: Label
 var _weapon_level_label: Label
 var _pips_label: Label
 var _kill_feed_container: VBoxContainer
+var _kill_feed_box: MarginContainer
 var _leaderboard_label: Label
 var _victory_panel: PanelContainer
 var _victory_title: Label
@@ -32,6 +33,16 @@ func bind(game_mode: GunGameMode, pause: PauseMenu) -> void:
 	mode.kill_logged.connect(_on_kill_logged)
 	mode.match_finished.connect(_on_match_finished)
 	update_hud()
+
+
+## Touch controls put their pause button in the top-right corner; the kill feed starts
+## below `top` so the two never overlap.
+func move_kill_feed_below(top: float) -> void:
+	_kill_feed_box.offset_top = top
+
+
+func kill_feed_top() -> float:
+	return _kill_feed_box.offset_top
 
 
 func update_hud() -> void:
@@ -173,16 +184,16 @@ func _build_ui() -> void:
 	top_left.add_child(_leaderboard_label)
 
 	# 3. Top Right: Kill Feed
-	var top_right := MarginContainer.new()
-	top_right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	top_right.offset_right = -24.0
-	top_right.offset_top = 20.0
-	top_right.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	add_child(top_right)
+	_kill_feed_box = MarginContainer.new()
+	_kill_feed_box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_kill_feed_box.offset_right = -24.0
+	_kill_feed_box.offset_top = 20.0
+	_kill_feed_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	add_child(_kill_feed_box)
 
 	_kill_feed_container = VBoxContainer.new()
 	_kill_feed_container.alignment = BoxContainer.ALIGNMENT_BEGIN
-	top_right.add_child(_kill_feed_container)
+	_kill_feed_box.add_child(_kill_feed_container)
 
 	# 4. Victory Overlay
 	_victory_panel = PanelContainer.new()
