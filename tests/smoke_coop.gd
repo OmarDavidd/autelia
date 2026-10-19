@@ -22,6 +22,13 @@ func _frames(count: int) -> void:
 		await get_tree().physics_frame
 
 
+## The HUD writes its labels in _process. A slow first frame runs several physics steps
+## before any process frame, and process_frame fires before nodes process, so wait two.
+func _hud_updated() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		failures.append(message)
@@ -214,6 +221,7 @@ func _bots_join_arcade_without_the_leaderboard() -> void:
 	_expect(mode.players[1].input is BotInput and mode.players[2].input is BotInput, "teammates must be bots")
 	_expect(main.leaderboard == null, "a run with bots must not submit to the leaderboard")
 	_expect(mode.hud.board.status.text == "Partida con bots: no entra en la tabla", "bots note: %s" % mode.hud.board.status.text)
+	await _hud_updated()
 	_expect(mode.hud.team_label.visible and mode.hud.team_label.text == "Equipo: 3/3 en pie", "team label: %s" % mode.hud.team_label.text)
 
 	# The HUD follows the local player's health, not a teammate's.
@@ -223,10 +231,10 @@ func _bots_join_arcade_without_the_leaderboard() -> void:
 	_expect(is_equal_approx(mode.hud.health_bar.value, before), "a teammate's damage moved the local health bar")
 	mode.players[1].health.invulnerable_left = 0.0
 	mode.players[1].take_hit(10000.0)
-	await _frames(1)
+	await _hud_updated()
 	_expect(mode.hud.team_label.text == "Equipo: 2/3 en pie", "team label after a fall: %s" % mode.hud.team_label.text)
 	mode.player.take_hit(10000.0)
-	await _frames(1)
+	await _hud_updated()
 	_expect(mode.hud.down_label.visible, "the local player must be told they will revive")
 	_expect(not mode.hud.game_over_panel.visible, "game over shown while a bot stands")
 	Events.wave_started.emit(2)

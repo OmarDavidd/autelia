@@ -14,6 +14,13 @@ func _frames(count: int) -> void:
 		await get_tree().physics_frame
 
 
+## The HUD writes its labels in _process. A slow first frame runs several physics steps
+## before any process frame, and process_frame fires before nodes process, so wait two.
+func _hud_updated() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		failures.append(message)
@@ -32,6 +39,7 @@ func _run() -> void:
 	var player := mode.player
 
 	await _frames(3)
+	await _hud_updated()
 	_expect(hud.wave_label.text.begins_with("Prepárate"), "break label: '%s'" % hud.wave_label.text)
 	_expect(hud.health_bar.value == player.health.max_health, "health bar not full at start")
 
