@@ -19,6 +19,7 @@ var experiment_button: Button
 var arcade_button: Button
 var daily_button: Button
 var coop_button: Button
+var gun_game_button: Button
 var coop_name_input: LineEdit
 var coop_code_input: LineEdit
 var coop_error: Label
@@ -270,6 +271,15 @@ func show_modes() -> void:
 	_show(_modes)
 
 
+func start_gun_game() -> void:
+	var player_name := GameSession.clean_name(GameSession.load_name())
+	if player_name.is_empty():
+		player_name = "Tú"
+	GameSession.player_name = player_name
+	GameSession.mode = GameSession.Mode.GUN_GAME
+	_start()
+
+
 func show_arcade() -> void:
 	_open_run_page(false)
 
@@ -442,6 +452,10 @@ func _build_modes() -> Control:
 	coop_button.pressed.connect(show_coop)
 	column.add_child(daily_button)
 	column.add_child(coop_button)
+	gun_game_button = UiStyle.button("Juego de armas")
+	gun_game_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	gun_game_button.pressed.connect(start_gun_game)
+	column.add_child(gun_game_button)
 	column.add_child(_back_button())
 	return column.get_parent()
 

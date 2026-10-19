@@ -17,6 +17,9 @@ var input: PlayerInput = LocalInput.new()
 ## Body color; co-op players each get their own.
 var color := Palette.PLAYER
 
+## Attacker who dealt the most recent hit; used for kill attribution in versus modes.
+var last_attacker: Node = null
+
 var _collision_layer := 0
 var _death_tween: Tween
 
@@ -52,7 +55,9 @@ func _physics_process(delta: float) -> void:
 	look.modulate.a = 0.35 if blinking else 1.0
 
 
-func take_hit(damage: float, _source: Node = null) -> void:
+func take_hit(damage: float, source: Node = null) -> void:
+	if source != null:
+		last_attacker = source
 	health.take_damage(damage)
 
 
@@ -64,6 +69,7 @@ func _on_damaged(amount: float, current: float) -> void:
 func revive(fraction := 0.5) -> void:
 	if _death_tween:
 		_death_tween.kill()
+	last_attacker = null
 	health.current = health.max_health * fraction
 	health.invulnerable_left = REVIVE_GRACE
 	collision_layer = _collision_layer
@@ -75,6 +81,7 @@ func revive(fraction := 0.5) -> void:
 
 func _on_died() -> void:
 	Events.player_down.emit(self)
+	Events.player_killed.emit(last_attacker, self)
 	# The run is over only when nobody else is standing.
 	var team_standing := get_tree().get_nodes_in_group("player").any(
 		func(other: Player) -> bool: return other != self and not other.health.is_dead())

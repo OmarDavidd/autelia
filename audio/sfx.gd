@@ -42,7 +42,10 @@ func _ready() -> void:
 		_players[sound] = player
 
 	Events.shot_fired.connect(func(shooter: Node) -> void:
-		play("shoot" if shooter is Player else "enemy_shoot", 0.06))
+		var pitch := 1.0
+		if shooter is Player and shooter.weapon:
+			pitch = shooter.weapon.sound_pitch
+		play("shoot" if shooter is Player else "enemy_shoot", 0.05, pitch))
 	Events.enemy_hit.connect(func(_enemy: Node, _damage: float) -> void: play("enemy_hit", 0.1))
 	Events.enemy_killed.connect(func(_enemy: Node) -> void: play("enemy_death", 0.08))
 	Events.player_damaged.connect(func(_amount: float, _left: float) -> void: play("player_hurt"))
@@ -50,11 +53,11 @@ func _ready() -> void:
 	Events.player_died.connect(func() -> void: play("game_over"))
 
 
-func play(sound: String, pitch_jitter := 0.0) -> void:
+func play(sound: String, pitch_jitter := 0.0, base_pitch := 1.0) -> void:
 	last_played = sound
 	if muted:
 		return
 	var player: AudioStreamPlayer = _players[sound]
-	player.pitch_scale = 1.0 + _rng.randf_range(-pitch_jitter, pitch_jitter)
+	player.pitch_scale = maxf(base_pitch + _rng.randf_range(-pitch_jitter, pitch_jitter), 0.1)
 	player.play()
 

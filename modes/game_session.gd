@@ -5,7 +5,7 @@ extends RefCounted
 ## Static, so it survives scene reloads (R and Reiniciar keep the same mode).
 ## The name is also saved to disk so the next launch suggests it.
 
-enum Mode { EXPERIMENT, ARCADE, DAILY, COOP }
+enum Mode { EXPERIMENT, ARCADE, DAILY, COOP, GUN_GAME }
 
 const NAME_MIN := 3
 const NAME_MAX := 16

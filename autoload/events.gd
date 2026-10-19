@@ -10,6 +10,8 @@ signal player_damaged(amount: float, health_left: float)
 signal player_died
 ## One player fell (co-op: the others may still be standing).
 signal player_down(player: Node)
+## A player was eliminated by an attacker (killer may be null or an enemy/player).
+signal player_killed(killer: Node, victim: Node)
 signal player_revived(player: Node)
 signal wave_started(index: int)
 signal wave_ended(index: int)

@@ -31,6 +31,9 @@ func _apply_mode() -> void:
 	if GameSession.mode == GameSession.Mode.COOP:
 		_apply_coop()
 		return
+	if GameSession.mode == GameSession.Mode.GUN_GAME:
+		_apply_gun_game()
+		return
 	# Arcade and the daily challenge share every rule; the challenge fixes the seed and table.
 	var day := GameSession.challenge_day if GameSession.mode == GameSession.Mode.DAILY else ""
 	if not day.is_empty():
@@ -102,6 +105,32 @@ func _apply_coop() -> void:
 		touch.name = "TouchControls"
 		add_child(touch)
 		touch.bind(survival)
+
+
+func _apply_gun_game() -> void:
+	survival.process_mode = Node.PROCESS_MODE_DISABLED
+	survival.visible = false
+	remove_child(survival)
+	survival.queue_free()
+
+	var gun_game := GunGameMode.new()
+	gun_game.name = "GunGame"
+	add_child(gun_game)
+	gun_game.setup_match(GameSession.player_name, 7)
+
+	var hud := GunGameHud.new()
+	hud.name = "GunGameHud"
+	add_child(hud)
+	hud.bind(gun_game)
+
+	camera = FollowCamera.new()
+	add_child(camera)
+	camera.follow(gun_game.local_player, Rect2(Vector2.ZERO, gun_game.arena.size))
+	camera.make_current()
+
+	markers = TeammateMarkers.new()
+	add_child(markers)
+	markers.bind(gun_game)
 
 
 func _connect_leaderboard(day: String) -> void:
