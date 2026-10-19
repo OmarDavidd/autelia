@@ -115,10 +115,11 @@ func _create(id: int, player_name: Variant) -> void:
 	if not _valid_name(player_name):
 		_send(id, {"t": "error", "reason": "bad_name"})
 		return
+	# Leaving first lets a sole host re-create even when the server is at its room cap.
+	_leave(id)
 	if rooms.size() >= MAX_ROOMS:
 		_send(id, {"t": "error", "reason": "busy"})
 		return
-	_leave(id)
 	var code := CoopRoom.random_code()
 	while rooms.has(code):
 		code = CoopRoom.random_code()
@@ -176,14 +177,23 @@ func _is_host(id: int) -> bool:
 	return not code.is_empty() and rooms[code].host_id() == id
 
 
-## Names reach every member's screen, so control characters (new lines and the like) are refused.
+## Names reach every member's screen, so anything that breaks a line, hides or reorders text
+## is refused: a name could otherwise fake extra roster rows.
 func _valid_name(value: Variant) -> bool:
 	if not value is String or not GameSession.is_valid_name(value):
 		return false
 	for letter: String in value:
-		if letter.unicode_at(0) < 32 or letter.unicode_at(0) == 127:
+		if _hidden_or_breaking(letter.unicode_at(0)):
 			return false
 	return true
+
+
+static func _hidden_or_breaking(c: int) -> bool:
+	return c < 32 or (c >= 127 and c <= 159) \
+		or (c >= 0x200B and c <= 0x200F) \
+		or (c >= 0x2028 and c <= 0x202E) \
+		or (c >= 0x2060 and c <= 0x206F) \
+		or c == 0xFEFF or c == 0xFFFD
 
 
 func _broadcast(code: String) -> void:

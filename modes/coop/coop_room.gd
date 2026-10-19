@@ -48,17 +48,25 @@ func to_dict() -> Dictionary:
 static func from_dict(data: Variant, you_id: int) -> CoopRoom:
 	if not data is Dictionary or not data.get("players") is Array or not data.get("code") is String:
 		return null
+	if data.players.size() > MAX_PLAYERS:
+		return null
 	var room := CoopRoom.new()
 	room.code = data.code
-	room.started = data.get("started", false) == true
+	room.started = _flag(data.get("started"))
 	room.you = you_id
 	for entry: Variant in data.players:
 		if not entry is Dictionary:
 			return null
 		var id: Variant = entry.get("id")
-		room.players.append({"id": int(id) if id is float or id is int else 0, "name": str(entry.get("name", "")),
-			"host": entry.get("host", false) == true, "bot": entry.get("bot", false) == true})
+		room.players.append({"id": int(id) if id is float or id is int else 0,
+			"name": str(entry.get("name", "")).left(GameSession.NAME_MAX),
+			"host": _flag(entry.get("host")), "bot": _flag(entry.get("bot"))})
 	return room
+
+
+## Only a real true counts; comparing other types to a bool is a script error in GDScript.
+static func _flag(value: Variant) -> bool:
+	return value is bool and value
 
 
 static func clean_code(raw: String) -> String:

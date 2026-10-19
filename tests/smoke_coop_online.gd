@@ -53,6 +53,8 @@ func _run() -> void:
 	await _host_creates_and_starts()
 	await _guest_waits_for_the_host()
 	await _late_join_and_errors()
+	_hostile_room_data()
+	await _leave_and_create_again()
 	await _lost_server()
 
 	RoomClient.url_override = ""
@@ -107,8 +109,13 @@ func _host_creates_and_starts() -> void:
 	_expect(await _until(func() -> bool: return menu.lobby_rows.get_child_count() == 3), "server bot not listed")
 	_expect(server.rooms[code].players[2].bot, "the bot must be added on the server")
 
+	var entries := [0]
+	main.get_node("MainMenu").dismissed.connect(func() -> void: entries[0] += 1)
+	# A double tap: two started rooms can reach the menu in the same frame.
+	menu.start_coop()
 	menu.start_coop()
 	_expect(await _closed(menu), "the start must close the menu")
+	_expect(entries[0] == 1, "the run must start once, started %d times" % entries[0])
 	await _frames(3)
 	_expect(GameSession.mode == GameSession.Mode.COOP, "co-op mode not selected")
 	var mode: SurvivalMode = main.get_node("Survival")
@@ -166,6 +173,40 @@ func _late_join_and_errors() -> void:
 	_expect(GameSession.coop_room.started and GameSession.coop_room.players.size() == 2, "late joiner room: %s" % str(GameSession.coop_room.to_dict()))
 	host.leave()
 	RoomClient.shared(get_tree()).leave()
+	main.queue_free()
+	await _frames(10)
+
+
+## A broken or hostile server copy is refused or bounded, never trusted.
+func _hostile_room_data() -> void:
+	_expect(CoopRoom.from_dict({"code": "ABCD", "started": "true", "players": [{"id": 2, "name": "A", "host": "yes"}]}, 2) != null,
+		"wrong-typed flags must not break parsing")
+	var room := CoopRoom.from_dict({"code": "ABCD", "started": "true", "players": [{"id": 2, "name": "A", "host": "yes"}]}, 2)
+	_expect(room != null and not room.started and not room.players[0].host, "only real booleans count")
+	var many := []
+	for i in 50:
+		many.append({"id": i, "name": "x".repeat(500), "host": false, "bot": true})
+	var big := CoopRoom.from_dict({"code": "ABCD", "players": many}, 1)
+	_expect(big == null, "a roster over the player cap must be refused")
+	var long_name := CoopRoom.from_dict({"code": "ABCD", "players": [{"id": 1, "name": "x".repeat(500), "host": true}]}, 1)
+	_expect(long_name != null and long_name.players[0].name.length() == GameSession.NAME_MAX, "names must be cut to the limit")
+
+
+## Leaving and creating again must not stack the menu's listeners on the shared client.
+func _leave_and_create_again() -> void:
+	var main := await _open_main()
+	var menu: MainMenu = main.get_node("MainMenu")
+	menu.show_coop()
+	menu.create_room()
+	await _until(func() -> bool: return menu.lobby_rows.get_child_count() == 1)
+	menu.leave_room()
+	var client := RoomClient.shared(get_tree())
+	_expect(client.room_changed.get_connections().is_empty(), "leaving must drop the menu's listeners")
+	menu.create_room()
+	_expect(await _until(func() -> bool: return menu.lobby_rows.get_child_count() == 1 and GameSession.coop_room != null),
+		"creating again after leaving failed")
+	_expect(client.room_changed.get_connections().size() == 1, "listeners stacked: %d" % client.room_changed.get_connections().size())
+	client.leave()
 	main.queue_free()
 	await _frames(10)
 

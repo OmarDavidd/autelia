@@ -93,6 +93,9 @@ func _create_join_and_roster() -> void:
 	_expect(CoopRoom.is_valid_code(code), "invalid room code: %s" % code)
 	var room := CoopRoom.from_dict(created.room, int(created.you))
 	_expect(room.players.size() == 1 and room.is_host(), "creator must be the only member and host")
+	_expect((await _ask(ana, {"t": "create", "name": "Ana"})).t == "room", "a sole host must be able to re-create")
+	_expect(server.rooms.size() == 1, "re-creating must replace the old room, rooms: %d" % server.rooms.size())
+	code = _last(ana).room.code
 
 	var beto := await _connect()
 	var before: int = _inbox[ana].size()
@@ -158,6 +161,12 @@ func _bad_requests() -> void:
 		[{"t": "create", "name": "Al"}, "bad_name"],
 		[{"t": "create", "name": "Ana\nBot"}, "bad_name"],
 		[{"t": "create", "name": 12345}, "bad_name"],
+		# Line breaks and invisible or reordering marks would let a name fake roster rows.
+		[{"t": "create", "name": "ab\u2028Bot 2"}, "bad_name"],
+		[{"t": "create", "name": "ab\u0085cd"}, "bad_name"],
+		[{"t": "create", "name": "ab\u202ecd"}, "bad_name"],
+		[{"t": "create", "name": "\u200b\u200b\u200b"}, "bad_name"],
+		[{"t": "create", "name": "a\u0000bcd"}, "bad_name"],
 		[{"t": "join", "code": "KX0P", "name": "Ana"}, "bad_code"],
 		[{"t": "join", "code": ["KXQP"], "name": "Ana"}, "bad_code"],
 		[{"t": "join", "code": "KXQP", "name": "Ana"}, "not_found"],

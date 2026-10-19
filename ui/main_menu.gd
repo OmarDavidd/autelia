@@ -142,12 +142,17 @@ func start_coop() -> void:
 func leave_room() -> void:
 	if _client:
 		_client.leave()
-		_client = null
+		_forget_server()
 	GameSession.coop_room = null
 	show_coop()
 
 
+## Runs once: the menu frees itself only at the end of the frame, and more started rooms
+## (a double tap, a join) can still arrive before then.
 func _enter_coop() -> void:
+	_forget_server()
+	if seen:
+		return
 	GameSession.mode = GameSession.Mode.COOP
 	_start()
 
