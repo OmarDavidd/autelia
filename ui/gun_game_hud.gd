@@ -4,6 +4,8 @@ extends CanvasLayer
 ## ranking and victory overlay.
 
 var mode: GunGameMode
+var restart_button: Button
+var menu_button: Button
 
 var _weapon_name_label: Label
 var _weapon_level_label: Label
@@ -16,11 +18,16 @@ var _victory_subtitle: Label
 
 
 func _ready() -> void:
+	# The match pauses the tree when someone wins; the victory buttons must still work.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
 
 
-func bind(game_mode: GunGameMode) -> void:
+## The victory buttons leave the match the same way the pause menu does.
+func bind(game_mode: GunGameMode, pause: PauseMenu) -> void:
 	mode = game_mode
+	restart_button.pressed.connect(pause.restart)
+	menu_button.pressed.connect(pause.to_main_menu)
 	mode.player_leveled.connect(_on_player_leveled)
 	mode.kill_logged.connect(_on_kill_logged)
 	mode.match_finished.connect(_on_match_finished)
@@ -198,13 +205,8 @@ func _build_ui() -> void:
 	_victory_subtitle = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 20)
 	vic_vbox.add_child(_victory_subtitle)
 
-	var restart_btn := UiStyle.button("Jugar de nuevo", 260)
-	restart_btn.pressed.connect(func() -> void: get_tree().reload_current_scene())
-	vic_vbox.add_child(restart_btn)
+	restart_button = UiStyle.button("Jugar de nuevo", 260)
+	vic_vbox.add_child(restart_button)
 
-	var menu_btn := UiStyle.button("Menú principal", 260)
-	menu_btn.pressed.connect(func() -> void:
-		GameSession.mode = GameSession.Mode.EXPERIMENT
-		get_tree().reload_current_scene()
-	)
-	vic_vbox.add_child(menu_btn)
+	menu_button = UiStyle.button("Menú principal", 260)
+	vic_vbox.add_child(menu_button)

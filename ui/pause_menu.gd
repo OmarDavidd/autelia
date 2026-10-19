@@ -8,7 +8,8 @@ extends CanvasLayer
 var panel: PanelContainer
 var resume_button: Button
 
-@onready var mode: SurvivalMode = get_node(mode_path)
+## Any mode with is_over(): the survival run or a gun game match.
+@onready var mode: Node = get_node(mode_path)
 
 
 func _ready() -> void:

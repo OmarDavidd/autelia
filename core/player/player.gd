@@ -62,7 +62,8 @@ func take_hit(damage: float, source: Node = null) -> void:
 
 
 func _on_damaged(amount: float, current: float) -> void:
-	Events.player_damaged.emit(amount, current)
+	if input.is_local():
+		Events.player_damaged.emit(amount, current)
 
 
 ## Back from being down with part of the health (co-op: at the start of the next wave).

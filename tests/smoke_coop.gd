@@ -226,9 +226,15 @@ func _bots_join_arcade_without_the_leaderboard() -> void:
 
 	# The HUD follows the local player's health, not a teammate's.
 	var before := mode.hud.health_bar.value
+	var hurt := [0]
+	var count_hurt := func(_amount: float, _left: float) -> void: hurt[0] += 1
+	Events.player_damaged.connect(count_hurt)
 	mode.players[1].take_hit(30.0)
 	await _frames(1)
+	Events.player_damaged.disconnect(count_hurt)
 	_expect(is_equal_approx(mode.hud.health_bar.value, before), "a teammate's damage moved the local health bar")
+	# The hurt sound and telemetry are this machine's player's only.
+	_expect(hurt[0] == 0, "a bot teammate's damage reached player_damaged %d times" % hurt[0])
 	mode.players[1].health.invulnerable_left = 0.0
 	mode.players[1].take_hit(10000.0)
 	await _hud_updated()

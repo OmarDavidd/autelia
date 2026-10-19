@@ -118,10 +118,16 @@ func _apply_gun_game() -> void:
 	add_child(gun_game)
 	gun_game.setup_match(GameSession.player_name, 7)
 
+	# The run's pause menu went away with Survival; the match gets its own.
+	var pause := PauseMenu.new()
+	pause.name = "PauseMenu"
+	pause.mode_path = NodePath("../GunGame")
+	add_child(pause)
+
 	var hud := GunGameHud.new()
 	hud.name = "GunGameHud"
 	add_child(hud)
-	hud.bind(gun_game)
+	hud.bind(gun_game, pause)
 
 	camera = FollowCamera.new()
 	add_child(camera)

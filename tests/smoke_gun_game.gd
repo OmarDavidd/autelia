@@ -29,6 +29,10 @@ func _run() -> void:
 	await _test_ffa_bullet_damage_and_self_immunity()
 	await _test_progression_and_victory()
 	await _test_safe_respawn()
+	await _test_names_reach_the_feed()
+	await _test_damage_events_are_local_only()
+	await _test_victory_freezes_the_match()
+	await _test_main_offers_pause_and_menu()
 
 	if failures.is_empty():
 		print("SMOKE OK: Gun Game arena, FFA combat, weapon tiers, bot AI, and victory flow passed!")
@@ -171,3 +175,88 @@ func _test_safe_respawn() -> void:
 	arena.queue_free()
 	p1.queue_free()
 	await _frames(2)
+
+
+## The kill feed, standings and victory banner use each combatant's own name.
+func _test_names_reach_the_feed() -> void:
+	var mode := GunGameMode.new()
+	mode.mode_seed = 77
+	add_child(mode)
+	mode.setup_match("Tester", 2)
+	await _frames(2)
+	var feed: Array[String] = []
+	mode.kill_logged.connect(func(killer: String, victim: String, _kc: Color, _vc: Color) -> void:
+		feed.append("%s>%s" % [killer, victim]))
+	Events.player_killed.emit(mode.local_player, mode.combatants[1])
+	_expect(feed == ["Tester>%s" % GunGameMode.BOT_NAMES[0]], "kill feed names: %s" % str(feed))
+	mode.queue_free()
+	await _frames(2)
+
+
+## Only this machine's player makes the hurt sound and reaches telemetry; bots hitting
+## each other off screen must not.
+func _test_damage_events_are_local_only() -> void:
+	var mode := GunGameMode.new()
+	mode.mode_seed = 78
+	add_child(mode)
+	mode.setup_match("Tester", 2)
+	await _frames(2)
+	var events := [0]
+	var count := func(_amount: float, _left: float) -> void: events[0] += 1
+	Events.player_damaged.connect(count)
+	mode.combatants[1].take_hit(10.0, mode.combatants[2])
+	_expect(events[0] == 0, "a bot's damage reached player_damaged %d times" % events[0])
+	mode.local_player.take_hit(10.0, mode.combatants[1])
+	_expect(events[0] == 1, "the local player's damage must reach player_damaged once, got %d" % events[0])
+	Events.player_damaged.disconnect(count)
+	mode.queue_free()
+	await _frames(2)
+
+
+## Once someone wins, the match stops behind the victory panel.
+func _test_victory_freezes_the_match() -> void:
+	var mode := GunGameMode.new()
+	mode.mode_seed = 79
+	add_child(mode)
+	mode.setup_match("Tester", 2)
+	await _frames(2)
+	mode.levels[mode.local_player] = GunGameRules.MAX_LEVEL
+	Events.player_killed.emit(mode.local_player, mode.combatants[1])
+	_expect(mode.is_finished, "the last-level kill must finish the match")
+	_expect(get_tree().paused, "the match must stop once it is won")
+	get_tree().paused = false
+	mode.queue_free()
+	await _frames(2)
+
+
+## The full scene: Esc pauses a gun game, and the victory panel leaves through the same
+## paths as the pause menu (back to the real main menu, never an Experiment run).
+func _test_main_offers_pause_and_menu() -> void:
+	GameSession.mode = GameSession.Mode.GUN_GAME
+	MainMenu.seen = true
+	var main: Node = load("res://main.tscn").instantiate()
+	add_child(main)
+	await _frames(3)
+	var pause: PauseMenu = main.get_node_or_null("PauseMenu")
+	_expect(pause != null, "a gun game needs the pause menu")
+	if pause:
+		_expect(pause.mode == main.get_node("GunGame"), "the pause menu must watch the gun game")
+		_expect(pause.can_pause(), "a running gun game must be pausable")
+		var hud: GunGameHud = main.get_node("GunGameHud")
+		var menu_targets := _pressed_targets(hud.get("menu_button"))
+		_expect("to_main_menu" in menu_targets, "Menú principal must go through the pause menu: %s" % str(menu_targets))
+		var restart_targets := _pressed_targets(hud.get("restart_button"))
+		_expect("restart" in restart_targets, "Jugar de nuevo must go through the pause menu: %s" % str(restart_targets))
+	main.queue_free()
+	GameSession.mode = GameSession.Mode.EXPERIMENT
+	MainMenu.seen = false
+	await _frames(2)
+
+
+## Method names a button's pressed signal calls; empty when there is no button.
+func _pressed_targets(button: Variant) -> Array[String]:
+	var targets: Array[String] = []
+	if button is Button:
+		for connection in button.pressed.get_connections():
+			targets.append(connection.callable.get_method())
+	return targets

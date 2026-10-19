@@ -73,3 +73,7 @@ func _nearest_enemy(player: Player) -> Node2D:
 				< player.global_position.distance_squared_to(best.global_position):
 			best = enemy
 	return best
+
+
+func is_local() -> bool:
+	return false

@@ -16,3 +16,9 @@ func aim_point(player: Player) -> Vector2:
 
 func wants_to_shoot(_player: Player) -> bool:
 	return false
+
+
+## Whether a person at this machine plays through it: only that player's damage makes the
+## hurt sound and reaches telemetry. Bots (and, later, remote players) say no.
+func is_local() -> bool:
+	return true

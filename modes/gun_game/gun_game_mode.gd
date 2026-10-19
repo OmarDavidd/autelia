@@ -70,6 +70,7 @@ func setup_match(human_name: String, bot_count := 7) -> void:
 
 func _register_combatant(combatant: Player, display_name: String) -> void:
 	combatants.append(combatant)
+	names[combatant] = display_name
 	levels[combatant] = 1
 	level_kills[combatant] = 0
 	# Movement speed restored to standard fluid speed
@@ -85,6 +86,11 @@ func _register_combatant(combatant: Player, display_name: String) -> void:
 	# Configure weapon for FFA combat with starting weapon
 	combatant.weapon.team = Weapon.Team.FFA
 	combatant.weapon.apply_profile(GunGameRules.weapon_profile(1))
+
+
+## The pause menu asks this: no pausing once someone has won.
+func is_over() -> bool:
+	return is_finished
 
 
 func living_combatants() -> Array[Player]:
@@ -128,12 +134,19 @@ func _on_player_killed(killer: Node, victim: Node) -> void:
 
 	kill_logged.emit(k_name, v_name, k_color, v_color)
 
-	# Schedule safe respawn for victim
+	# Schedule safe respawn for victim. A child timer stops while paused and goes away with
+	# the match, so a restart never fires a respawn into a freed mode.
 	if not is_finished:
-		get_tree().create_timer(RESPAWN_DELAY).timeout.connect(func() -> void:
+		var timer := Timer.new()
+		timer.one_shot = true
+		timer.wait_time = RESPAWN_DELAY
+		add_child(timer)
+		timer.timeout.connect(func() -> void:
+			timer.queue_free()
 			if is_instance_valid(v_player) and not is_finished:
 				_respawn_player(v_player)
 		)
+		timer.start()
 
 
 func _respawn_player(p: Player) -> void:
@@ -145,4 +158,6 @@ func _respawn_player(p: Player) -> void:
 func _crown_winner(p: Player) -> void:
 	is_finished = true
 	winner = p
+	# Everything stops behind the victory panel; its buttons keep working (the HUD always runs).
+	get_tree().paused = true
 	match_finished.emit(winner, names.get(winner, "Jugador"), winner.color)

@@ -139,3 +139,7 @@ func _nearest_opponent(player: Player) -> Player:
 			best_dist = d
 			best = other
 	return best
+
+
+func is_local() -> bool:
+	return false
