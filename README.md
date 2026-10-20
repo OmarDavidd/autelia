@@ -44,13 +44,14 @@ El menú principal ofrece:
 - **Modos → Desafío diario:** las reglas del Arcade, pero ese día todos juegan **la misma
   partida** (mismos enemigos en los mismos lugares). Cambia a la medianoche de cada jugador y
   su tabla muestra el mejor puntaje de cada nombre.
-- **Modos → Cooperativo** *(en construcción)*: creas una sala con un código de 4 letras y los
-  demás se unen desde el lobby, hasta 8 jugadores. El mapa crece con la cantidad de jugadores
-  y la cámara te sigue; la dificultad también sube con el equipo. Quien cae vuelve en la
-  próxima oleada. Las salas viven en el servidor del juego: se puede entrar con el código
-  incluso con la partida empezada, y solo el anfitrión suma bots y la inicia. Sin servidor se
-  abre una sala local, solo con bots. Ver a los demás jugadores en la partida llega en la
-  próxima etapa.
+- **Modos → Cooperativo:** creas una sala con un código de 4 letras y los demás se unen desde
+  el lobby, hasta 8 jugadores. Todos juegan la misma partida en red: el anfitrión la simula y
+  los demás ven sus enemigos, balas, oleada y puntaje; tu propio jugador se mueve al instante en
+  tu pantalla. El mapa crece con la cantidad de jugadores y la cámara te sigue; la dificultad
+  también sube con el equipo. Quien cae vuelve en la próxima oleada. Se puede entrar con el
+  código incluso con la partida empezada (apareces junto a un compañero, protegido un momento).
+  Si el anfitrión se va, el siguiente jugador sigue la partida. Solo el anfitrión suma bots y la
+  inicia. Sin servidor se abre una sala local, solo con bots.
 - **Modos → Arcade:** escribes un nombre (sin cuenta ni contraseña) y cada oleada es más difícil.
   Sumas 10 puntos por perseguidor, 20 por tirador y 50 × el número de oleada por cada oleada
   que sobrevives. Al morir, el puntaje se sube a una **tabla global** con los 10 mejores.
@@ -177,7 +178,7 @@ modificar la jugabilidad. Más detalle en [`docs/architecture.md`](docs/architec
 ## Pruebas y herramientas
 
 ```sh
-godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade, touch, daily, coop, coop_mode, coop_online y room_server
+godot --headless --path . tests/smoke_stage1.tscn         # una prueba por etapa: 1–5, 7, sound, feel, arcade, touch, daily, coop, coop_mode, coop_online, coop_net, coop_guest, gun_game y room_server
 godot --path . tools/capture/capture.tscn -- etapa7-alta  # genera una captura guionada
 python3 tools/sfx/generate_sfx.py                         # regenera los sonidos de assets/audio/
 ```

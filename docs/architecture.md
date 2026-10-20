@@ -23,7 +23,7 @@ never changes gameplay in return.
 | `modes/` | game rules. `survival/` runs timed waves and owns the run's seeded RNG; `arcade/` keeps the score; `GameSession` holds the mode and name chosen in the menu | how difficulty is chosen |
 | `difficulty/` | `DifficultyParams` (d → parameters), `DifficultyDirector`, controllers | gameplay nodes |
 | `telemetry/` | `TelemetryRecorder`: one CSV row per wave | gameplay logic |
-| `online/` | `Leaderboard`: global Arcade scores on Supabase (REST) | gameplay logic |
+| `online/` | `Leaderboard`: global Arcade scores on Supabase (REST); co-op networking: `RoomClient`, `CoopHost`, `CoopGuest`, `NetSnapshot` and the network inputs | gameplay rules |
 | `ui/` | main and pause menus, HUD, touch controls, rotate hint, researcher panel (F3), shared UI style | |
 | `audio/` | `Sfx`: plays sounds on events | |
 | `tools/` | scripted captures, sound synthesis, test sandbox | |
@@ -65,6 +65,29 @@ internet-facing behind the tunnel, so it checks every message (type, name, code,
 caps peers and rooms. `RoomClient` (`online/`) is this machine's link, kept under the tree
 root so it outlives the menu; every room the server sends goes through `CoopRoom.from_dict`.
 Without a server, Crear opens a local `CoopRoom` where only bots can join.
+
+In a started room the host's machine simulates the run and the server only relays: guest
+inputs (`{"t": "in"}`, about 30 a second) go to the host, the host's snapshots
+(`{"t": "snap"}`, 20 a second) go to the guests. The server checks every input and only the
+envelope of a snapshot, rate-limits both, and passes snapshots on as written.
+
+- `CoopHost` adds every room member to its run: bots run there, and each guest's player is
+  driven by `NetworkInput`, which follows the guest's reported position at no more than the
+  player's speed. It sends `NetSnapshot`s (players, enemies, spawn markers, bullets, wave,
+  score, hits and kills; rows are arrays whose columns `NetSnapshot` names), trimmed to the
+  server's size bound. Late joiners appear next to a living teammate with brief invulnerability;
+  each player keeps its color slot.
+- `CoopGuest` simulates nothing. Teammates (`PuppetInput`), enemies, markers and bullets are
+  puppets drawn 100 ms behind the newest snapshot and interpolated between snapshots. The
+  guest's own player moves locally (`GuestInput`: the host fires its shots) and its health
+  comes back through `Player.mirror_health`. A snapshot that fails `NetSnapshot.read` is
+  dropped whole.
+- When the host leaves, the server passes the role on; the new host's `CoopGuest.take_over`
+  turns the shown run into a real one and a `CoopHost` goes on from the last snapshot.
+- Leaving the run leaves the room; online, the pause menu does not pause the game.
+- Host and guest share tree groups (`player`, `enemies`), so one process can hold only one of
+  them: `smoke_coop_net` tests the host with a raw-socket guest and `smoke_coop_guest` the
+  guest with a raw-socket host.
 
 ## Difficulty
 
