@@ -74,6 +74,7 @@ func _run() -> void:
 	await _create_join_and_roster()
 	await _bad_requests()
 	await _full_room()
+	await _relay_inside_started_room()
 
 	server.stop()
 	if failures.is_empty():
@@ -187,7 +188,7 @@ func _bad_requests() -> void:
 	_expect(_inbox[ws].size() == before, "actions without a room must be ignored")
 
 	# A message over the size bound costs that socket its connection, not the server.
-	ws.send_text(JSON.stringify({"t": "create", "name": "x".repeat(RoomServer.MAX_MESSAGE * 2)}))
+	ws.send_text(JSON.stringify({"t": "create", "name": "x".repeat(RoomServer.MAX_MESSAGE + 1000)}))
 	await _frames(30)
 	_expect(ws.get_ready_state() != WebSocketPeer.STATE_OPEN, "an oversized message must close the socket")
 	var other := await _connect()
@@ -214,3 +215,94 @@ func _full_room() -> void:
 	for ws in [host, seventh, extra]:
 		ws.close()
 	await _frames(10)
+
+
+## Stage 2c: inside a started room the server passes guests' inputs to the host and the
+## host's snapshots to the guests, and nothing else.
+func _relay_inside_started_room() -> void:
+	var ana := await _connect()
+	var created: Variant = await _ask(ana, {"t": "create", "name": "Ana"})
+	var code: String = created.room.code
+	var beto := await _connect()
+	var joined: Variant = await _ask(beto, {"t": "join", "code": code, "name": "Beto"})
+	var beto_id := int(joined.you)
+	await _frames(5)
+	var outsider := await _connect()
+	await _ask(outsider, {"t": "create", "name": "Otro"})
+
+	var an_input := {"t": "in", "q": 1, "p": [100.5, 200.0], "a": [0.0, -1.0], "s": true}
+	var a_snapshot := {"t": "snap", "d": {"k": 1, "pl": [[1, 10.0, 20.0]]}}
+
+	# Not started yet: nothing is relayed.
+	var ana_before: int = _inbox[ana].size()
+	var beto_before: int = _inbox[beto].size()
+	beto.send_text(JSON.stringify(an_input))
+	ana.send_text(JSON.stringify(a_snapshot))
+	await _frames(10)
+	_expect(_inbox[ana].size() == ana_before and _inbox[beto].size() == beto_before,
+		"a room that has not started must not relay")
+
+	await _ask(ana, {"t": "start"})
+	await _frames(5)
+
+	ana_before = _inbox[ana].size()
+	beto.send_text(JSON.stringify(an_input))
+	var relayed: Variant = await _next(ana, ana_before)
+	_expect(relayed is Dictionary and relayed.t == "in" and int(relayed.get("from", 0)) == beto_id \
+		and relayed.p == [100.5, 200.0] and relayed.a == [0.0, -1.0] and relayed.s == true and relayed.q == 1.0,
+		"the host gets the guest input with its sender: %s" % str(relayed))
+
+	beto_before = _inbox[beto].size()
+	ana_before = _inbox[ana].size()
+	ana.send_text(JSON.stringify(a_snapshot))
+	var snap: Variant = await _next(beto, beto_before)
+	_expect(snap is Dictionary and snap.t == "snap" and snap.d == JSON.parse_string(JSON.stringify(a_snapshot.d)), "the guest gets the snapshot: %s" % str(snap))
+	await _frames(5)
+	_expect(_inbox[ana].size() == ana_before, "the host does not get its own snapshot back")
+
+	# Wrong direction, wrong shape or numbers that are not finite: dropped, never relayed.
+	ana_before = _inbox[ana].size()
+	beto_before = _inbox[beto].size()
+	var outsider_before: int = _inbox[outsider].size()
+	beto.send_text(JSON.stringify(a_snapshot))
+	ana.send_text(JSON.stringify(an_input))
+	outsider.send_text(JSON.stringify(an_input))
+	for bad in [
+		{"t": "in", "q": 2, "p": "here", "a": [0.0, 1.0], "s": true},
+		{"t": "in", "q": 2, "p": [1.0], "a": [0.0, 1.0], "s": true},
+		{"t": "in", "q": 2, "p": [1.0, "2"], "a": [0.0, 1.0], "s": true},
+		{"t": "in", "q": 2, "p": [1.0, 2.0], "a": [0.0, 1.0], "s": 1},
+		{"t": "in", "p": [1.0, 2.0], "a": [0.0, 1.0], "s": true},
+		{"t": "snap", "d": [1, 2]},
+	]:
+		beto.send_text(JSON.stringify(bad))
+	beto.send_text('{"t": "in", "q": 3, "p": [1e400, 2.0], "a": [0.0, 1.0], "s": true}')
+	ana.send_text(JSON.stringify({"t": "snap", "d": "text"}))
+	await _frames(15)
+	_expect(_inbox[ana].size() == ana_before, "the host got a message it should not: %s" % str(_inbox[ana].slice(ana_before)))
+	_expect(_inbox[beto].size() == beto_before, "the guest got a message it should not: %s" % str(_inbox[beto].slice(beto_before)))
+	_expect(_inbox[outsider].size() == outsider_before, "another room must hear nothing")
+
+	# A full snapshot of a crowded wave fits; a flood of inputs is cut to the rate limit.
+	var big := {"t": "snap", "d": {"k": 2, "en": []}}
+	for i in 400:
+		big.d.en.append([i, 1, 1234.5, 678.25, 0.75])
+	beto_before = _inbox[beto].size()
+	ana.send_text(JSON.stringify(big))
+	var big_snap: Variant = await _next(beto, beto_before)
+	_expect(big_snap is Dictionary and big_snap.d.en.size() == 400, "a crowded snapshot must get through")
+
+	await _frames(70)
+	ana_before = _inbox[ana].size()
+	for i in 200:
+		an_input.q = 10 + i
+		beto.send_text(JSON.stringify(an_input))
+	await _frames(20)
+	var got: int = _inbox[ana].size() - ana_before
+	_expect(got > 0 and got <= RoomServer.MAX_INPUTS_PER_SECOND, "inputs must be rate-limited, relayed %d" % got)
+	_expect(beto.get_ready_state() == WebSocketPeer.STATE_OPEN, "a flood is dropped, not punished with a disconnect")
+
+	for ws in [ana, beto, outsider]:
+		ws.close()
+	await _frames(10)
+	_expect(server.peer_count() == 0, "relay sockets must be forgotten, %d left" % server.peer_count())

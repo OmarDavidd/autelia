@@ -8,17 +8,28 @@ extends Node
 ## Client → server: {"t": "create", "name"} · {"t": "join", "code", "name"} · {"t": "leave"}
 ##                  {"t": "add_bot"} · {"t": "start"} (host only)
 ## Server → client: {"t": "room", "you", "room"} after every change · {"t": "error", "reason"}
+##
+## In a started room (stage 2c, the host simulates the run):
+## guest → host:   {"t": "in", "q", "p": [x, y], "a": [x, y], "s"}, relayed with "from" added
+## host → guests:  {"t": "snap", "d": {…}}, relayed as it came
+## The server never reads a snapshot's contents; the guests check them.
 
 const DEFAULT_PORT := 8910
 const MAX_PEERS := 256
 const MAX_ROOMS := 128
-## Bigger messages are refused by the socket itself; the lobby's are tiny.
-const MAX_MESSAGE := 1024
+## Bigger messages are refused by the socket itself. Lobby messages are tiny; the host's
+## snapshot of a crowded wave is the largest one.
+const MAX_MESSAGE := 32768
+## Guests send their input about 30 times a second and the host 20 snapshots; anything
+## beyond these is dropped.
+const MAX_INPUTS_PER_SECOND := 45
+const MAX_SNAPSHOTS_PER_SECOND := 30
 ## A connection that never finishes the WebSocket handshake is dropped after this.
 const HANDSHAKE_SECONDS := 5.0
 
 var _tcp := TCPServer.new()
-## Connection id → {"ws": WebSocketPeer, "code": String, "since": float}.
+## Connection id → {"ws": WebSocketPeer, "code": String, "since": float,
+## "window": float, "inputs": int, "snapshots": int} (the last three count this second's relays).
 var _peers := {}
 ## Invite code → CoopRoom.
 var rooms := {}
@@ -55,8 +66,10 @@ func _process(delta: float) -> void:
 			continue
 		var ws := WebSocketPeer.new()
 		ws.inbound_buffer_size = MAX_MESSAGE
+		# Room for a few snapshots queued for a slow guest before they start being dropped.
+		ws.outbound_buffer_size = MAX_MESSAGE * 8
 		ws.accept_stream(stream)
-		_peers[_next_id] = {"ws": ws, "code": "", "since": _clock}
+		_peers[_next_id] = {"ws": ws, "code": "", "since": _clock, "window": _clock, "inputs": 0, "snapshots": 0}
 		_next_id += 1
 	for id: int in _peers.keys():
 		_poll(id)
@@ -107,6 +120,18 @@ func _handle(id: int, message: Variant) -> void:
 			if _is_host(id):
 				rooms[code].started = true
 				_broadcast(code)
+		# Game traffic is dropped quietly when it does not fit: a guest sends it many
+		# times a second and an error for each would only add to the flood.
+		"in":
+			if _in_started_room(id) and not _is_host(id) and _valid_input(message) and _allow(id, "inputs"):
+				message["from"] = id
+				_send(rooms[code].host_id(), message)
+		"snap":
+			if _in_started_room(id) and _is_host(id) and message.get("d") is Dictionary and _allow(id, "snapshots"):
+				var text := JSON.stringify(message)
+				for entry in rooms[code].players:
+					if not entry.bot and entry.id != id:
+						_send_text(entry.id, text)
 		_:
 			_send(id, {"t": "error", "reason": "bad_request"})
 
@@ -172,6 +197,44 @@ func _drop(id: int) -> void:
 		_peers.erase(id)
 
 
+func _in_started_room(id: int) -> bool:
+	var code: String = _peers[id].code
+	return not code.is_empty() and rooms[code].started
+
+
+## A guest's input: a sequence number, its position and aim as two finite numbers each,
+## and whether it shoots. Nothing else is relayed.
+static func _valid_input(message: Dictionary) -> bool:
+	if not _finite(message.get("q")) or not message.get("s") is bool:
+		return false
+	for key in ["p", "a"]:
+		var pair: Variant = message.get(key)
+		if not pair is Array or pair.size() != 2 or not _finite(pair[0]) or not _finite(pair[1]):
+			return false
+	for key: Variant in message.keys():
+		if not key in ["t", "q", "p", "a", "s"]:
+			return false
+	return true
+
+
+static func _finite(value: Variant) -> bool:
+	return value is float and is_finite(value)
+
+
+## Counts one relay of `kind` for this peer and says whether this second still has room.
+func _allow(id: int, kind: String) -> bool:
+	var peer: Dictionary = _peers[id]
+	if _clock - peer.window >= 1.0:
+		peer.window = _clock
+		peer.inputs = 0
+		peer.snapshots = 0
+	var cap := MAX_INPUTS_PER_SECOND if kind == "inputs" else MAX_SNAPSHOTS_PER_SECOND
+	if peer[kind] >= cap:
+		return false
+	peer[kind] += 1
+	return true
+
+
 func _is_host(id: int) -> bool:
 	var code: String = _peers[id].code
 	return not code.is_empty() and rooms[code].host_id() == id
@@ -205,6 +268,10 @@ func _broadcast(code: String) -> void:
 
 
 func _send(id: int, message: Dictionary) -> void:
+	_send_text(id, JSON.stringify(message))
+
+
+func _send_text(id: int, text: String) -> void:
 	var ws: WebSocketPeer = _peers[id].ws
 	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		ws.send_text(JSON.stringify(message))
+		ws.send_text(text)
