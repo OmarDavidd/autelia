@@ -12,6 +12,8 @@ var server: RoomServer
 var guest: WebSocketPeer
 ## Every message the raw guest received, parsed.
 var guest_inbox: Array = []
+## Other raw members; their messages are read and dropped.
+var others: Array[WebSocketPeer] = []
 
 
 func _ready() -> void:
@@ -19,6 +21,10 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	for other in others:
+		other.poll()
+		while other.get_available_packet_count() > 0:
+			other.get_packet()
 	if guest == null:
 		return
 	guest.poll()
@@ -186,9 +192,48 @@ func _host_runs_the_guest() -> void:
 		"the snapshot lists the enemies: %s" % str(enemies))
 	_expect(int(_snapshots().back().d.get("w", 0)) == survival.spawner.wave, "the snapshot carries the wave")
 
+	# A late joiner appears next to a living teammate, protected for a moment (S21).
+	var caro := WebSocketPeer.new()
+	caro.connect_to_url(RoomClient.server_url())
+	others.append(caro)
+	_expect(await _until(func() -> bool: return caro.get_ready_state() == WebSocketPeer.STATE_OPEN), "Caro could not connect")
+	caro.send_text(JSON.stringify({"t": "join", "code": code, "name": "Caro"}))
+	_expect(await _until(func() -> bool: return survival.players.size() == 3, 240), "a late joiner must enter the running game")
+	if survival.players.size() == 3:
+		var newcomer: Player = survival.players[2]
+		var nearest := INF
+		for mate in survival.players:
+			if mate != newcomer and not mate.health.is_dead():
+				nearest = minf(nearest, mate.global_position.distance_to(newcomer.global_position))
+		_expect(nearest <= CoopHost.JOIN_DISTANCE + 1.0, "the late joiner appears next to a teammate, %f px away" % nearest)
+		_expect(newcomer.health.is_invulnerable(), "the late joiner is protected on arrival")
+		_expect(newcomer.color == Palette.PLAYER_COLORS[2], "the late joiner takes the next color")
+
+		# Beto leaves: his player goes and Caro keeps her color.
+		guest.send_text(JSON.stringify({"t": "leave"}))
+		_expect(await _until(func() -> bool: return survival.players.size() == 2, 240), "a guest who leaves must leave the run")
+		_expect(not is_instance_valid(remote) or remote.is_queued_for_deletion(), "the leaver's player is removed")
+		# Beto no longer gets snapshots, so the host's own view is checked.
+		var host_side: CoopHost = main.get_node("CoopHost")
+		_expect(host_side.slots == [0, 2], "colors stay with their players after someone leaves: %s" % str(host_side.slots))
+		_expect(newcomer.color == Palette.PLAYER_COLORS[2], "Caro keeps her color")
+
+	# Online, opening the pause menu does not stop the run for everyone.
+	var pause: PauseMenu = survival.get_node("PauseMenu")
+	pause.open()
+	_expect(not get_tree().paused and pause.visible, "an online pause menu must not pause the game")
+	pause.resume()
+
+	# Leaving the run leaves the room.
+	var ana_id := client.room.you
 	main.queue_free()
+	_expect(await _until(func() -> bool: return client.room == null and server.rooms.has(code) \
+		and not server.rooms[code].players.any(func(p: Dictionary) -> bool: return p.id == ana_id), 240),
+		"leaving the run must leave the room")
+	MainMenu.seen = true
 	client.leave()
 	guest.close()
+	caro.close()
 	await _physics(5)
 
 

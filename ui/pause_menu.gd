@@ -4,6 +4,8 @@ extends CanvasLayer
 ## While paused nothing advances, so waves and telemetry do not count paused time.
 
 @export var mode_path: NodePath
+## Online co-op turns this off: the run goes on for the others while the menu is open.
+var pauses_game := true
 
 var panel: PanelContainer
 var resume_button: Button
@@ -39,13 +41,14 @@ func toggle() -> void:
 
 
 func open() -> void:
-	get_tree().paused = true
+	get_tree().paused = pauses_game
 	visible = true
 
 
 func resume() -> void:
 	visible = false
-	get_tree().paused = false
+	if pauses_game:
+		get_tree().paused = false
 
 
 func restart() -> void:

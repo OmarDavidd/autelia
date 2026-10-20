@@ -12,6 +12,13 @@ var preview: Leaderboard
 ## Co-op only: the camera that follows this machine's player and the teammate markers.
 var camera: FollowCamera
 var markers: TeammateMarkers
+## Online co-op only: the link to the room server, left when the run ends.
+var room_client: RoomClient
+## Online co-op only: the server was lost mid-run; the menu comes back shortly.
+var lost_connection := false
+
+## How long the lost-connection notice stays before the menu comes back.
+const LOST_SECONDS := 3.0
 
 @onready var survival: SurvivalMode = $Survival
 
@@ -88,6 +95,11 @@ func _apply_coop() -> void:
 	survival.hud.show_score(keeper)
 	survival.hud.board.show_note("El cooperativo todavía no tiene tabla")
 	var client := _online_client(room)
+	if client:
+		room_client = client
+		client.disconnected.connect(_on_connection_lost)
+		# The run goes on for the others while one player has the menu open.
+		survival.get_node("PauseMenu").pauses_game = false
 	if client and room.is_host():
 		# Online host: this run is the real one; guests play in it through the server.
 		var host := CoopHost.new()
@@ -117,6 +129,25 @@ func _apply_coop() -> void:
 		touch.name = "TouchControls"
 		add_child(touch)
 		touch.bind(survival)
+
+
+## Leaving the run (menu, restart, closing) leaves the room, so the others see it at once.
+func _exit_tree() -> void:
+	if room_client and is_instance_valid(room_client):
+		room_client.leave()
+
+
+func _on_connection_lost() -> void:
+	lost_connection = true
+	survival.hud.show_notice("Se perdió la conexión con el servidor")
+	get_tree().create_timer(LOST_SECONDS).timeout.connect(_back_to_menu)
+
+
+func _back_to_menu() -> void:
+	MainMenu.seen = false
+	GameSession.coop_room = null
+	get_tree().paused = false
+	get_tree().reload_current_scene()
 
 
 ## The room server link when this room came from it and is still connected, else null.

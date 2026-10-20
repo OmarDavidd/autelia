@@ -49,12 +49,12 @@ const MAX_EVENTS := 400
 var _next_id := 1
 
 
-## `ids[i]` is the room id of `mode.players[i]`.
-func capture(mode: SurvivalMode, ids: Array[int], tick: int, score: int, events: Array) -> Dictionary:
+## `ids[i]` is the room id of `mode.players[i]` and `slots[i]` its color slot.
+func capture(mode: SurvivalMode, ids: Array[int], slots: Array[int], tick: int, score: int, events: Array) -> Dictionary:
 	var players := []
 	for i in mode.players.size():
 		var each: Player = mode.players[i]
-		players.append([i, ids[i], _r(each.global_position.x), _r(each.global_position.y),
+		players.append([slots[i], ids[i], _r(each.global_position.x), _r(each.global_position.y),
 			_r(each.body.rotation, 0.01), roundi(each.health.current), each.health.is_dead(),
 			each.health.is_invulnerable()])
 

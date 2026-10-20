@@ -15,6 +15,8 @@ var kills_label: Label
 var team_label: Label
 ## Co-op only: shown while this machine's player waits to revive.
 var down_label: Label
+## Online co-op: a lost connection and the like.
+var notice_label: Label
 var score_label: Label
 var next_label: Label
 var game_over_panel: PanelContainer
@@ -47,6 +49,11 @@ func bind(mode: SurvivalMode) -> void:
 	health_bar.value = mode.player.health.current
 	# The bar follows this machine's player only, never a teammate.
 	mode.player.health.damaged.connect(_on_player_damaged)
+
+
+func show_notice(text: String) -> void:
+	notice_label.text = text
+	notice_label.visible = true
 
 
 ## Arcade only: shows the score and puts it, with the leaderboard, on the game-over panel.
@@ -193,6 +200,10 @@ func _build() -> void:
 	down_label.add_theme_font_override("font", UiStyle.font(700))
 	down_label.visible = false
 	middle.add_child(down_label)
+	notice_label = UiStyle.label(HORIZONTAL_ALIGNMENT_CENTER, 24)
+	notice_label.add_theme_font_override("font", UiStyle.font(700))
+	notice_label.visible = false
+	middle.add_child(notice_label)
 
 	kills_label = UiStyle.label(HORIZONTAL_ALIGNMENT_RIGHT)
 	kills_label.custom_minimum_size = Vector2(240, 0)

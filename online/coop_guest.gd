@@ -122,6 +122,14 @@ func _on_snapshot(data: Dictionary) -> void:
 
 
 func _mirror_players(snapshot: Dictionary) -> void:
+	var listed := {}
+	for row: Array in snapshot.pl:
+		listed[int(row[NetSnapshot.P_SLOT])] = true
+	# A teammate the host no longer lists left the room.
+	for slot: int in _mates.keys():
+		if not listed.has(slot):
+			mode.remove_player(_mates[slot])
+			_mates.erase(slot)
 	for row: Array in snapshot.pl:
 		var player := _player_for(row)
 		if player == null:

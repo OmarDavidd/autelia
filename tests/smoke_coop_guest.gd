@@ -235,7 +235,20 @@ func _guest_shows_the_host_run() -> void:
 	_expect(survival.players.size() == before, "a bad snapshot must change nothing")
 	_expect(not me.health.is_dead() and survival.spawner.wave == 3, "a bad snapshot must not reach the run")
 
+	# A teammate the host no longer lists has left the run.
+	var ana_puppet: Player = survival.players[1] if survival.players.size() > 1 else null
+	await _stream(0.3, [beto_row], [], [], {"w": 3})
+	_expect(survival.players.size() == 1, "a teammate who left must go: %d players" % survival.players.size())
+	_expect(ana_puppet == null or not is_instance_valid(ana_puppet) or ana_puppet.is_queued_for_deletion(), "the puppet is removed")
+
+	# A lost connection says so instead of leaving a frozen run.
+	server.stop()
+	_expect(await _until(func() -> bool: return main.get("lost_connection") == true, 600), "the guest must notice the lost connection")
+	_expect(survival.hud.notice_label.visible and survival.hud.notice_label.text.contains("conexión"),
+		"the guest is told the connection was lost: %s" % survival.hud.notice_label.text)
+
 	main.queue_free()
+	MainMenu.seen = true
 	client.leave()
 	host.close()
 	await _seconds(0.1)

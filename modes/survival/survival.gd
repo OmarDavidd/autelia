@@ -54,6 +54,18 @@ func add_player(input: PlayerInput, color_slot := -1) -> Player:
 	return mate
 
 
+## Takes a player out of the run (online co-op: they left the room). If everyone still in
+## the run is down, the run is over, as if that player had fallen.
+func remove_player(leaver: Player) -> void:
+	if leaver == player or not players.has(leaver):
+		return
+	players.erase(leaver)
+	leaver.remove_from_group("player")
+	leaver.queue_free()
+	if spawner.running and is_over():
+		Events.player_died.emit()
+
+
 func living_players() -> Array[Player]:
 	return players.filter(func(each: Player) -> bool: return not each.health.is_dead())
 
