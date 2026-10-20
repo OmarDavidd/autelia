@@ -67,11 +67,11 @@ func _on_input(message: Dictionary) -> void:
 
 
 func _on_enemy_hit(enemy: Node, _damage: float) -> void:
-	if enemy is Node2D:
-		_events.append([NetSnapshot.EV_HIT, snappedf(enemy.global_position.x, 0.1), snappedf(enemy.global_position.y, 0.1)])
+	if enemy is Node2D and _events.size() < NetSnapshot.MAX_EVENTS:
+		_events.append([NetSnapshot.EV_HIT, _snapshot.id_of(enemy)])
 
 
 func _on_enemy_killed(enemy: Node) -> void:
-	if enemy is Node2D:
-		_events.append([NetSnapshot.EV_KILL, snappedf(enemy.global_position.x, 0.1),
+	if enemy is Node2D and _events.size() < NetSnapshot.MAX_EVENTS:
+		_events.append([NetSnapshot.EV_KILL, _snapshot.id_of(enemy), snappedf(enemy.global_position.x, 0.1),
 			snappedf(enemy.global_position.y, 0.1), NetSnapshot.kind_of(enemy)])

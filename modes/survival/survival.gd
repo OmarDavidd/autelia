@@ -40,13 +40,14 @@ func _ready() -> void:
 	hud.bind(self)
 
 
-## Adds a teammate driven by `input`, in the next free color. Returns null when full.
-func add_player(input: PlayerInput) -> Player:
+## Adds a teammate driven by `input`, in the next free color unless `color_slot` picks one
+## (online guests color everyone as the host does). Returns null when full.
+func add_player(input: PlayerInput, color_slot := -1) -> Player:
 	if players.size() >= MAX_PLAYERS:
 		return null
 	var mate: Player = PLAYER_SCENE.instantiate()
 	mate.input = input
-	mate.color = Palette.PLAYER_COLORS[players.size()]
+	mate.color = Palette.PLAYER_COLORS[color_slot if color_slot >= 0 else players.size()]
 	mate.position = player.position + TEAMMATE_OFFSETS[players.size()]
 	add_child(mate)
 	players.append(mate)

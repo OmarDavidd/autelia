@@ -81,6 +81,14 @@ func _ricochet(step: Vector2) -> Vector2:
 	return step
 
 
+## Online co-op guests: only shows where the host's bullet is; it hits nothing here.
+func become_puppet() -> void:
+	set_physics_process(false)
+	set_deferred("monitoring", false)
+	collision_layer = 0
+	collision_mask = 0
+
+
 func _on_body_entered(body: Node) -> void:
 	if body == source or body in _hit_bodies:
 		return

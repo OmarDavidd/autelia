@@ -6,6 +6,8 @@ extends CharacterBody2D
 const RADIUS := 16.0
 ## Invulnerability after reviving, so the player is not knocked down again on arrival.
 const REVIVE_GRACE := 1.5
+## Online guests: how long a reported protection lasts until the next snapshot renews it.
+const MIRROR_GRACE := 0.2
 
 @export var speed := 260.0
 @export var acceleration := 2200.0
@@ -67,6 +69,25 @@ func take_hit(damage: float, source: Node = null) -> void:
 func _on_damaged(amount: float, current: float) -> void:
 	if input.is_local():
 		Events.player_damaged.emit(amount, current)
+
+
+## Online co-op guests: takes the health the host reports, going through the same damage,
+## down and revive steps as a local hit, so the HUD, sounds and team count follow it.
+func mirror_health(hp: float, down: bool, shielded: bool) -> void:
+	if down:
+		if not health.is_dead():
+			health.invulnerable_left = 0.0
+			health.take_damage(health.current)
+		return
+	if health.is_dead():
+		revive(hp / health.max_health)
+	elif hp < health.current:
+		health.invulnerable_left = 0.0
+		health.take_damage(health.current - hp)
+	else:
+		health.current = hp
+	# Renewed by every snapshot while the host's player is protected, so it blinks here too.
+	health.invulnerable_left = MIRROR_GRACE if shielded else 0.0
 
 
 ## Back from being down with part of the health (co-op: at the start of the next wave).

@@ -36,9 +36,15 @@ const B_Y := 2
 const B_DIR := 3
 const B_ENEMY := 4
 
-## Events since the last snapshot: ["h", x, y] an enemy was hit, ["k", x, y, kind] killed.
+## Events since the last snapshot: ["h", enemy id] an enemy was hit, ["k", enemy id, x, y, kind]
+## an enemy was killed.
 const EV_HIT := "h"
 const EV_KILL := "k"
+
+## Most rows a guest accepts; more means the snapshot is not one the host made.
+const MAX_ENEMIES := 400
+const MAX_BULLETS := 800
+const MAX_EVENTS := 400
 
 var _next_id := 1
 
@@ -87,8 +93,64 @@ static func fit(data: Dictionary, limit: int) -> Dictionary:
 	return trimmed
 
 
+## A guest's check of a snapshot from the host: the snapshot itself when every field has
+## the shape and type above and every number is finite, else {} (the whole snapshot is
+## dropped; the next one comes 50 ms later).
+static func read(data: Dictionary) -> Dictionary:
+	if not (_finite(data.get("k")) and _finite(data.get("w")) and data.get("br") is bool
+			and _finite(data.get("tl")) and _finite(data.get("sc"))):
+		return {}
+	var players: Variant = data.get("pl")
+	if not _rows(players, SurvivalMode.MAX_PLAYERS, [P_SLOT, P_ID, P_X, P_Y, P_AIM, P_HP], [P_DOWN, P_SHIELDED]):
+		return {}
+	for row: Array in players:
+		if row[P_SLOT] < 0 or row[P_SLOT] >= SurvivalMode.MAX_PLAYERS:
+			return {}
+	var enemies: Variant = data.get("en")
+	if not _rows(enemies, MAX_ENEMIES, [E_ID, E_KIND, E_X, E_Y, E_LOOK], [E_FLASH]):
+		return {}
+	if not _rows(data.get("bu"), MAX_BULLETS, [B_ID, B_X, B_Y, B_DIR], [B_ENEMY]):
+		return {}
+	var events: Variant = data.get("ev")
+	if not events is Array or events.size() > MAX_EVENTS:
+		return {}
+	for event: Variant in events:
+		if not event is Array or event.is_empty():
+			return {}
+		if event[0] == EV_HIT and event.size() == 2 and _finite(event[1]):
+			continue
+		if event[0] == EV_KILL and event.size() == 5 and event.slice(1).all(_finite):
+			continue
+		return {}
+	return data
+
+
+static func _rows(rows: Variant, most: int, numbers: Array, flags: Array) -> bool:
+	if not rows is Array or rows.size() > most:
+		return false
+	for row: Variant in rows:
+		if not row is Array or row.size() != numbers.size() + flags.size():
+			return false
+		for column: int in numbers:
+			if not _finite(row[column]):
+				return false
+		for column: int in flags:
+			if not row[column] is bool:
+				return false
+	return true
+
+
+static func _finite(value: Variant) -> bool:
+	return value is float and is_finite(value)
+
+
 static func kind_of(enemy: Node) -> int:
 	return KIND_SHOOTER if enemy is Shooter else KIND_CHASER
+
+
+## The id this node carries in every snapshot (given on first sight).
+func id_of(node: Node) -> int:
+	return _id(node)
 
 
 func _id(node: Node) -> int:

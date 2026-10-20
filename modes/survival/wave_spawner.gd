@@ -55,6 +55,14 @@ func stop() -> void:
 	running = false
 
 
+## Online co-op guests: shows the host's wave without running one.
+func show_state(index: int, breaking: bool, seconds_left: float) -> void:
+	running = false
+	wave = index
+	_in_break = breaking
+	_time_left = seconds_left
+
+
 func in_break() -> bool:
 	return _in_break
 

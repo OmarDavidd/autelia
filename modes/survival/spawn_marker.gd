@@ -16,6 +16,13 @@ func progress() -> float:
 	return clampf(_elapsed / duration, 0.0, 1.0)
 
 
+## Online co-op guests: draws the host's marker at its progress; never spawns here.
+func show_progress(value: float) -> void:
+	set_physics_process(false)
+	_elapsed = clampf(value, 0.0, 1.0) * duration
+	queue_redraw()
+
+
 func _physics_process(delta: float) -> void:
 	_elapsed += delta
 	queue_redraw()

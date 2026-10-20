@@ -15,6 +15,8 @@ const RETARGET_FRAMES := 15
 
 var target: Player
 var flash := 0.0
+## Online co-op guests: where the host says this enemy looks (it has no target here).
+var look_override := Vector2.ZERO
 
 var _retarget_in := 0
 
@@ -74,6 +76,8 @@ func pop_scale() -> float:
 
 
 func look_direction() -> Vector2:
+	if look_override != Vector2.ZERO:
+		return look_override
 	if is_instance_valid(target):
 		return global_position.direction_to(target.global_position)
 	return Vector2.DOWN
@@ -82,6 +86,14 @@ func look_direction() -> Vector2:
 func _apply_contact_damage() -> void:
 	if global_position.distance_to(target.global_position) <= radius + Player.RADIUS + 2.0:
 		target.take_hit(contact_damage, self)
+
+
+## Online co-op guests: only shows where the host's enemy is; it neither moves, hits nor
+## blocks anyone here.
+func become_puppet() -> void:
+	set_physics_process(false)
+	collision_layer = 0
+	collision_mask = 0
 
 
 ## Color of the death burst; subclasses use their body color.

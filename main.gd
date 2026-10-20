@@ -93,6 +93,11 @@ func _apply_coop() -> void:
 		var host := CoopHost.new()
 		add_child(host)
 		host.bind(survival, client, room)
+	elif client:
+		# Online guest: the host runs everything; this run only shows it.
+		var guest := CoopGuest.new()
+		add_child(guest)
+		guest.bind(survival, client, room)
 	else:
 		for i in range(1, count):
 			if room.players[i].bot:
