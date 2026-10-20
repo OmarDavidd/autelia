@@ -7,11 +7,15 @@ extends PlayerInput
 
 ## How much faster than its speed the host may move a guest's player to catch up.
 const SPEED_SLACK := 1.5
+## A guest that has sent nothing for this long stops shooting (its last input said "fire").
+const QUIET_SECONDS := 0.5
 
 var _target := Vector2.INF
 var _aim := Vector2.RIGHT
 var _shooting := false
 var _last_seq := -INF
+## Physics time since the last report, counted in reported_velocity (called every frame).
+var _quiet := 0.0
 
 
 ## Takes one relayed input message (already checked by the server); older ones are ignored.
@@ -20,6 +24,7 @@ func report(message: Dictionary) -> void:
 	if seq <= _last_seq:
 		return
 	_last_seq = seq
+	_quiet = 0.0
 	_target = Vector2(message.p[0], message.p[1])
 	var aim := Vector2(message.a[0], message.a[1])
 	if aim.length() > 0.001:
@@ -32,6 +37,7 @@ func reports_position() -> bool:
 
 
 func reported_velocity(player: Player, delta: float) -> Vector2:
+	_quiet += delta
 	if not _target.is_finite() or delta <= 0.0:
 		return Vector2.ZERO
 	var step := (_target - player.global_position).limit_length(player.speed * SPEED_SLACK * delta)
@@ -43,7 +49,7 @@ func aim_point(player: Player) -> Vector2:
 
 
 func wants_to_shoot(_player: Player) -> bool:
-	return _shooting
+	return _shooting and _quiet < QUIET_SECONDS
 
 
 func is_local() -> bool:

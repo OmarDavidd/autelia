@@ -65,6 +65,7 @@ func _run() -> void:
 	RoomClient.url_override = "ws://127.0.0.1:%d" % PORT
 
 	await _host_runs_the_guest()
+	_snapshots_fit_the_server()
 
 	RoomClient.url_override = ""
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PROFILE))
@@ -149,6 +150,12 @@ func _host_runs_the_guest() -> void:
 	var fired := await _until(func() -> bool:
 		return survival.get_children().any(func(n: Node) -> bool: return n is Bullet and n.source == remote), 240)
 	_expect(fired, "the guest's shot must fire on the host")
+	# A guest that goes quiet stops shooting instead of firing forever.
+	await _seconds(NetworkInput.QUIET_SECONDS + 0.2)
+	var shots_before := survival.get_children().filter(func(n: Node) -> bool: return n is Bullet and n.source == remote).size()
+	await _seconds(0.3)
+	var shots_after := survival.get_children().filter(func(n: Node) -> bool: return n is Bullet and n.source == remote).size()
+	_expect(shots_after <= shots_before and not remote.input.wants_to_shoot(remote), "a quiet guest must stop shooting")
 	_send_input(4, settled, Vector2.RIGHT, false)
 
 	# Snapshots reach the guest about 20 times a second, with both players.
@@ -183,3 +190,19 @@ func _host_runs_the_guest() -> void:
 	client.leave()
 	guest.close()
 	await _physics(5)
+
+
+## The server closes any socket that sends more than its bound, so the host trims the
+## least important rows (bullets, then enemies) rather than lose its connection.
+func _snapshots_fit_the_server() -> void:
+	var data := {"k": 1, "w": 3, "pl": [[0, 1, 1.0, 2.0, 0.0, 100, false, false]], "en": [], "bu": []}
+	for i in 900:
+		data.bu.append([i, 1234.5, 678.9, 1.57, false])
+		data.en.append([i, 0, 1234.5, 678.9, 1.57, false])
+	var fitted := NetSnapshot.fit(data, RoomServer.MAX_MESSAGE)
+	var size := JSON.stringify({"t": "snap", "d": fitted}).to_utf8_buffer().size()
+	_expect(size <= RoomServer.MAX_MESSAGE, "a crowded snapshot must fit the server bound: %d bytes" % size)
+	_expect(fitted.pl.size() == 1 and fitted.w == 3, "trimming keeps players and the wave")
+	_expect(fitted.en.size() > 0, "enemies are kept while bullets can go")
+	var small := {"k": 2, "pl": [], "en": [[1, 0, 1.0, 1.0, 0.0, false]], "bu": [[1, 1.0, 1.0, 0.0, false]]}
+	_expect(NetSnapshot.fit(small, RoomServer.MAX_MESSAGE) == small, "a snapshot that fits is sent whole")

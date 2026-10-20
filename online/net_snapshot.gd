@@ -71,6 +71,22 @@ func capture(mode: SurvivalMode, ids: Array[int], tick: int, score: int, events:
 		"sc": score, "pl": players, "en": enemies, "bu": bullets, "ev": events}
 
 
+## The server closes a socket that sends more than its bound, so a snapshot that would not
+## fit loses its least important rows first: bullets, then enemies, never the players.
+## Halving keeps the number of retries small for a crowded wave.
+static func fit(data: Dictionary, limit: int) -> Dictionary:
+	# Room for the {"t":"snap","d":…} envelope around the data.
+	var budget := limit - 32
+	if JSON.stringify(data).to_utf8_buffer().size() <= budget:
+		return data
+	var trimmed := data.duplicate()
+	for key in ["bu", "en"]:
+		while JSON.stringify(trimmed).to_utf8_buffer().size() > budget and not trimmed.get(key, []).is_empty():
+			var rows: Array = trimmed[key]
+			trimmed[key] = rows.slice(0, rows.size() / 2)
+	return trimmed
+
+
 static func kind_of(enemy: Node) -> int:
 	return KIND_SHOOTER if enemy is Shooter else KIND_CHASER
 

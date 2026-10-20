@@ -55,7 +55,8 @@ func _physics_process(delta: float) -> void:
 	_since_snapshot = fmod(_since_snapshot, 1.0 / SNAPSHOTS_PER_SECOND)
 	_tick += 1
 	var keeper := mode.get_node_or_null("Score") as ScoreKeeper
-	client.send_snapshot(_snapshot.capture(mode, ids, _tick, keeper.score if keeper else 0, _events))
+	var data := _snapshot.capture(mode, ids, _tick, keeper.score if keeper else 0, _events)
+	client.send_snapshot(NetSnapshot.fit(data, RoomServer.MAX_MESSAGE))
 	_events = []
 
 
