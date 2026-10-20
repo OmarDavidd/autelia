@@ -12,7 +12,8 @@ extends Node
 ## In a started room (stage 2c, the host simulates the run):
 ## guest → host:   {"t": "in", "q", "p": [x, y], "a": [x, y], "s"}, relayed with "from" added
 ## host → guests:  {"t": "snap", "d": {…}}, relayed as it came
-## The server never reads a snapshot's contents; the guests check them.
+## The server checks only a snapshot's envelope and passes it on as the host wrote it; the
+## guests check its contents.
 
 const DEFAULT_PORT := 8910
 const MAX_PEERS := 256
@@ -88,7 +89,8 @@ func _poll(id: int) -> void:
 			while ws.get_available_packet_count() > 0 and _peers.has(id):
 				var packet := ws.get_packet()
 				if ws.was_string_packet():
-					_handle(id, _parse(packet.get_string_from_utf8()))
+					var text := packet.get_string_from_utf8()
+					_handle(id, _parse(text), text)
 				else:
 					_send(id, {"t": "error", "reason": "bad_request"})
 		WebSocketPeer.STATE_CLOSED:
@@ -101,7 +103,8 @@ func _parse(text: String) -> Variant:
 	return json.data if json.parse(text) == OK else null
 
 
-func _handle(id: int, message: Variant) -> void:
+## `text` is the message as it arrived; a snapshot is passed on in it unchanged.
+func _handle(id: int, message: Variant, text := "") -> void:
 	if not message is Dictionary or not message.get("t") is String:
 		_send(id, {"t": "error", "reason": "bad_request"})
 		return
@@ -127,8 +130,7 @@ func _handle(id: int, message: Variant) -> void:
 				message["from"] = id
 				_send(rooms[code].host_id(), message)
 		"snap":
-			if _in_started_room(id) and _is_host(id) and message.get("d") is Dictionary and _allow(id, "snapshots"):
-				var text := JSON.stringify(message)
+			if _in_started_room(id) and _is_host(id) and _valid_snapshot(message) and _allow(id, "snapshots"):
 				for entry in rooms[code].players:
 					if not entry.bot and entry.id != id:
 						_send_text(entry.id, text)
@@ -217,6 +219,10 @@ static func _valid_input(message: Dictionary) -> bool:
 	return true
 
 
+static func _valid_snapshot(message: Dictionary) -> bool:
+	return message.get("d") is Dictionary and message.size() == 2
+
+
 static func _finite(value: Variant) -> bool:
 	return value is float and is_finite(value)
 
@@ -271,7 +277,12 @@ func _send(id: int, message: Dictionary) -> void:
 	_send_text(id, JSON.stringify(message))
 
 
+## A guest that stops reading fills its outbound buffer; what does not fit is dropped here
+## quietly (the socket would log an error for every message).
 func _send_text(id: int, text: String) -> void:
 	var ws: WebSocketPeer = _peers[id].ws
-	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
-		ws.send_text(text)
+	if ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return
+	if ws.get_current_outbound_buffered_amount() + text.to_utf8_buffer().size() > ws.outbound_buffer_size:
+		return
+	ws.send_text(text)

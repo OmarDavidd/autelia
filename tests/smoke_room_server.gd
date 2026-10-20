@@ -11,6 +11,8 @@ var server: RoomServer
 var _clients: Array[WebSocketPeer] = []
 ## Socket → messages received so far (parsed).
 var _inbox := {}
+## Socket → the same messages as the text that arrived.
+var _raw := {}
 
 
 func _ready() -> void:
@@ -31,7 +33,9 @@ func _process(_delta: float) -> void:
 	for ws in _clients:
 		ws.poll()
 		while ws.get_available_packet_count() > 0:
-			_inbox[ws].append(JSON.parse_string(ws.get_packet().get_string_from_utf8()))
+			var text := ws.get_packet().get_string_from_utf8()
+			_raw[ws].append(text)
+			_inbox[ws].append(JSON.parse_string(text))
 
 
 func _connect() -> WebSocketPeer:
@@ -39,6 +43,7 @@ func _connect() -> WebSocketPeer:
 	ws.connect_to_url("ws://127.0.0.1:%d" % PORT)
 	_clients.append(ws)
 	_inbox[ws] = []
+	_raw[ws] = []
 	for i in 120:
 		await _frames(1)
 		if ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
@@ -260,6 +265,14 @@ func _relay_inside_started_room() -> void:
 	await _frames(5)
 	_expect(_inbox[ana].size() == ana_before, "the host does not get its own snapshot back")
 
+	# The snapshot is passed on as the host wrote it, not encoded again (that would grow it).
+	var written := '{"t":"snap","d":{"k":3,"pl":[[1,10,20]]}}'
+	beto_before = _inbox[beto].size()
+	ana.send_text(written)
+	await _next(beto, beto_before)
+	_expect(_raw[beto].size() > beto_before and _raw[beto][beto_before] == written,
+		"the snapshot must arrive as written: %s" % str(_raw[beto].slice(beto_before)))
+
 	# Wrong direction, wrong shape or numbers that are not finite: dropped, never relayed.
 	ana_before = _inbox[ana].size()
 	beto_before = _inbox[beto].size()
@@ -278,6 +291,7 @@ func _relay_inside_started_room() -> void:
 		beto.send_text(JSON.stringify(bad))
 	beto.send_text('{"t": "in", "q": 3, "p": [1e400, 2.0], "a": [0.0, 1.0], "s": true}')
 	ana.send_text(JSON.stringify({"t": "snap", "d": "text"}))
+	ana.send_text(JSON.stringify({"t": "snap", "d": {"k": 4}, "extra": "z"}))
 	await _frames(15)
 	_expect(_inbox[ana].size() == ana_before, "the host got a message it should not: %s" % str(_inbox[ana].slice(ana_before)))
 	_expect(_inbox[beto].size() == beto_before, "the guest got a message it should not: %s" % str(_inbox[beto].slice(beto_before)))
