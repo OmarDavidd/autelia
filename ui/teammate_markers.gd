@@ -6,11 +6,11 @@ extends CanvasLayer
 const EDGE := 36.0
 const SIZE := 16.0
 
-var _mode: Node
+var _mode: SurvivalMode
 var _canvas: Control
 
 
-func bind(mode: Node) -> void:
+func bind(mode: SurvivalMode) -> void:
 	_mode = mode
 
 
@@ -35,18 +35,8 @@ func markers() -> Array[Dictionary]:
 	var view := get_viewport().get_visible_rect()
 	var inner := view.grow(-EDGE)
 	var to_screen := get_viewport().get_canvas_transform()
-
-	var target_list: Array = []
-	var local: Node = null
-	if _mode.get("combatants") != null:
-		target_list = _mode.combatants
-		local = _mode.get("local_player")
-	elif _mode.get("players") != null:
-		target_list = _mode.players
-		local = _mode.get("player")
-
-	for mate in target_list:
-		if mate == local or mate.health.is_dead():
+	for mate in _mode.players:
+		if mate == _mode.player or mate.health.is_dead():
 			continue
 		var on_screen: Vector2 = to_screen * mate.global_position
 		if view.has_point(on_screen):

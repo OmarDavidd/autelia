@@ -16,23 +16,69 @@ var color := Palette.INK
 ## Enemy bullets get an ink outline so they read against any floor.
 var outlined := false
 
+## One circle per bullet size, shared by every bullet of that size.
+static var _shapes := {}
+
 var _hit_bodies: Array[Node] = []
+## Ricochets find walls with a ray each step instead of body_entered: the walls are one
+## body, so a bullet that already touches it never gets a second contact in a corner.
+var _ricochets := false
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
+	_ricochets = bounces > 0
 	if collision_shape:
-		var circle := CircleShape2D.new()
-		circle.radius = radius
-		collision_shape.shape = circle
+		if not _shapes.has(radius):
+			var circle := CircleShape2D.new()
+			circle.radius = radius
+			_shapes[radius] = circle
+		collision_shape.shape = _shapes[radius]
 
 
 func _physics_process(delta: float) -> void:
-	position += direction * speed * delta
+	var step := direction * speed * delta
+	if _ricochets:
+		step = _ricochet(step)
+		if is_queued_for_deletion():
+			return
+	position += step
 	lifetime -= delta
 	if lifetime <= 0.0:
 		queue_free()
+
+
+## Moves the bullet up to each wall it meets this step and turns it away, or frees it once
+## it has no bounces left. Returns what is left of the step.
+func _ricochet(step: Vector2) -> Vector2:
+	var space_state := get_world_2d().direct_space_state
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = collision_shape.shape
+	query.collision_mask = 1
+	# Two walls at most: a corner.
+	for i in 2:
+		query.transform = Transform2D(0.0, global_position)
+		query.motion = step
+		var fractions := space_state.cast_motion(query)
+		if fractions[1] >= 1.0:
+			return step
+		query.transform = Transform2D(0.0, global_position + step * fractions[1])
+		query.motion = Vector2.ZERO
+		var contact := space_state.get_rest_info(query)
+		var normal: Vector2 = contact.get("normal", Vector2.ZERO)
+		# Already heading away from the wall it grazes.
+		if normal == Vector2.ZERO or direction.dot(normal) >= 0.0:
+			return step
+		if bounces <= 0:
+			queue_free()
+			return Vector2.ZERO
+		global_position += step * fractions[0]
+		direction = direction.bounce(normal.normalized())
+		rotation = direction.angle()
+		bounces -= 1
+		step = direction * step.length() * (1.0 - fractions[0])
+	return step
 
 
 func _on_body_entered(body: Node) -> void:
@@ -49,18 +95,10 @@ func _on_body_entered(body: Node) -> void:
 		queue_free()
 		return
 
-	# Hit a wall / world obstacle (layer 1)
-	if bounces > 0:
-		var space_state := get_world_2d().direct_space_state
-		var query := PhysicsRayQueryParameters2D.create(global_position - direction * 24.0, global_position + direction * 24.0, 1)
-		var result := space_state.intersect_ray(query)
-		if result:
-			direction = direction.bounce(result.normal)
-			global_position = result.position + result.normal * (radius + 2.0)
-			rotation = direction.angle()
-			bounces -= 1
-			return
-
+	# Hit a wall / world obstacle (layer 1). A ricochet that only grazes it keeps going:
+	# its ray turns it once the wall is straight ahead.
+	if _ricochets:
+		return
 	queue_free()
 
 

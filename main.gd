@@ -140,10 +140,7 @@ func _apply_gun_game() -> void:
 	add_child(camera)
 	camera.follow(gun_game.local_player, Rect2(Vector2.ZERO, gun_game.arena.size))
 	camera.make_current()
-
-	markers = TeammateMarkers.new()
-	add_child(markers)
-	markers.bind(gun_game)
+	# No edge arrows: in a free-for-all every one of them would point at a rival.
 
 
 func _connect_leaderboard(day: String) -> void:

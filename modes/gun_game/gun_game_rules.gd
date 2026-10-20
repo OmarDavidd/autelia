@@ -1,7 +1,7 @@
 class_name GunGameRules
 extends RefCounted
 ## Weapon levels and rules for the Gun Game mode.
-## Players advance every 2 kills, ending with a melee ink thrust for the win.
+## Players advance every 3 kills, ending with a melee ink thrust for the win.
 
 const MAX_LEVEL := 5
 const KILLS_PER_LEVEL := 3

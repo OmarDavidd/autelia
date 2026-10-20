@@ -99,6 +99,11 @@ func _on_kill_logged(k_name: String, v_name: String, k_color: Color, v_color: Co
 	_add_kill_feed(k_name, v_name, k_color, v_color)
 
 
+## Player names are typed by people: a "[" must show as text, not open a BBCode tag.
+static func _escaped(text: String) -> String:
+	return text.replace("[", "[lb]")
+
+
 func _add_kill_feed(k_name: String, v_name: String, k_color: Color, v_color: Color) -> void:
 	var entry := RichTextLabel.new()
 	entry.fit_content = true
@@ -109,7 +114,7 @@ func _add_kill_feed(k_name: String, v_name: String, k_color: Color, v_color: Col
 	var k_hex := k_color.to_html(false)
 	var v_hex := v_color.to_html(false)
 	entry.text = "[color=#%s]%s[/color] [color=#2b2340]▶[/color] [color=#%s]%s[/color]" % [
-		k_hex, k_name, v_hex, v_name
+		k_hex, _escaped(k_name), v_hex, _escaped(v_name)
 	]
 	entry.add_theme_font_override("normal_font", UiStyle.font(600))
 	entry.add_theme_font_size_override("normal_font_size", 18)

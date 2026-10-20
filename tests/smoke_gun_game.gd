@@ -34,6 +34,11 @@ func _run() -> void:
 	await _test_victory_freezes_the_match()
 	await _test_main_offers_pause_and_menu()
 	await _test_touch_controls_play_gun_game()
+	await _test_ricochet_stays_inside_a_corner()
+	await _test_pellets_without_spread_all_fire()
+	await _test_bullets_share_collision_shapes()
+	await _test_gun_game_shows_no_rival_arrows()
+	await _test_feed_shows_bracket_names()
 
 	if failures.is_empty():
 		print("SMOKE OK: Gun Game arena, FFA combat, weapon tiers, bot AI, and victory flow passed!")
@@ -317,4 +322,116 @@ func _test_touch_controls_play_gun_game() -> void:
 	TouchControls.forced = false
 	GameSession.mode = GameSession.Mode.EXPERIMENT
 	MainMenu.seen = false
+	await _frames(2)
+
+
+## The arena's walls are one body with many shapes, so a bullet already touching it never
+## gets a second body_entered. A ricochet into a corner must still bounce off both walls.
+func _test_ricochet_stays_inside_a_corner() -> void:
+	var walls := StaticBody2D.new()
+	walls.collision_layer = 1
+	add_child(walls)
+	for side: Rect2 in [Rect2(400, 0, 40, 440), Rect2(0, 400, 440, 40)]:
+		var shape := RectangleShape2D.new()
+		shape.size = side.size
+		var collider := CollisionShape2D.new()
+		collider.shape = shape
+		collider.position = side.get_center()
+		walls.add_child(collider)
+	await _frames(2)
+
+	var bullet: Bullet = load("res://core/combat/bullet.tscn").instantiate()
+	bullet.direction = Vector2(1, 1).normalized()
+	bullet.speed = 900.0
+	bullet.lifetime = 1.0
+	bullet.bounces = 2
+	bullet.collision_mask = 1
+	bullet.position = Vector2(300, 300)
+	add_child(bullet)
+
+	var escaped := false
+	for i in 50:
+		await get_tree().physics_frame
+		if not is_instance_valid(bullet):
+			break
+		if bullet.position.x > 400.0 or bullet.position.y > 400.0:
+			escaped = true
+	_expect(not escaped, "a ricochet into a corner must not pass through the walls")
+	_expect(is_instance_valid(bullet) and bullet.bounces == 0, "the corner takes both bounces")
+	if is_instance_valid(bullet):
+		_expect(bullet.direction.x < 0.0 and bullet.direction.y < 0.0, "the bullet comes back out of the corner: %s" % bullet.direction)
+		bullet.queue_free()
+	walls.queue_free()
+	await _frames(2)
+
+
+func _test_pellets_without_spread_all_fire() -> void:
+	var holder := Node2D.new()
+	add_child(holder)
+	var shooter: Player = PLAYER_SCENE.instantiate()
+	holder.add_child(shooter)
+	await _frames(2)
+	shooter.weapon.bullet_count = 3
+	shooter.weapon.spread_degrees = 0.0
+	var before := holder.get_children().filter(func(n: Node) -> bool: return n is Bullet).size()
+	shooter.weapon.try_fire()
+	var after := holder.get_children().filter(func(n: Node) -> bool: return n is Bullet).size()
+	_expect(after - before == 3, "three pellets with no spread fire three bullets, got %d" % (after - before))
+	holder.queue_free()
+	await _frames(2)
+
+
+func _test_bullets_share_collision_shapes() -> void:
+	var scene: PackedScene = load("res://core/combat/bullet.tscn")
+	var shapes: Array[Shape2D] = []
+	for radius in [7.0, 7.0, 5.0]:
+		var bullet: Bullet = scene.instantiate()
+		bullet.radius = radius
+		add_child(bullet)
+		shapes.append(bullet.collision_shape.shape)
+	_expect(shapes[0] == shapes[1], "bullets of the same size share one collision shape")
+	_expect((shapes[0] as CircleShape2D).radius == 7.0, "the shared shape keeps the bullet size")
+	_expect((shapes[2] as CircleShape2D).radius == 5.0, "a default bullet keeps its 5 px shape")
+	for child in get_children():
+		if child is Bullet:
+			child.queue_free()
+	await _frames(2)
+
+
+## Everyone is a rival in a free-for-all: edge arrows to them would show where every
+## enemy hides behind the walls.
+func _test_gun_game_shows_no_rival_arrows() -> void:
+	GameSession.mode = GameSession.Mode.GUN_GAME
+	MainMenu.seen = true
+	var main: Node = load("res://main.tscn").instantiate()
+	add_child(main)
+	await _frames(3)
+	_expect(main.get("markers") == null, "a gun game must not point at rivals off screen")
+	main.queue_free()
+	GameSession.mode = GameSession.Mode.EXPERIMENT
+	MainMenu.seen = false
+	await _frames(2)
+
+
+func _test_feed_shows_bracket_names() -> void:
+	var mode := GunGameMode.new()
+	mode.name = "FeedGame"
+	mode.mode_seed = 78
+	add_child(mode)
+	mode.setup_match("[b]Ana[/b]", 2)
+	var pause := PauseMenu.new()
+	pause.mode_path = NodePath("../FeedGame")
+	add_child(pause)
+	var hud := GunGameHud.new()
+	add_child(hud)
+	hud.bind(mode, pause)
+	await _frames(2)
+	Events.player_killed.emit(mode.local_player, mode.combatants[1])
+	await get_tree().process_frame
+	var entries := hud.find_children("*", "RichTextLabel", true, false)
+	var text := (entries[-1] as RichTextLabel).get_parsed_text() if not entries.is_empty() else ""
+	_expect(text.begins_with("[b]Ana[/b]"), "the kill feed shows names as typed: %s" % text)
+	hud.queue_free()
+	pause.queue_free()
+	mode.queue_free()
 	await _frames(2)

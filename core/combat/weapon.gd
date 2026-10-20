@@ -72,8 +72,11 @@ func try_fire() -> bool:
 			shooter.velocity += dir * lunge
 
 	var angles: Array[float] = []
-	if bullet_count <= 1 or spread_degrees <= 0.0:
+	if bullet_count <= 1:
 		angles.append(base_angle)
+	elif spread_degrees <= 0.0:
+		for i in bullet_count:
+			angles.append(base_angle)
 	else:
 		var half_spread := deg_to_rad(spread_degrees) / 2.0
 		var step := deg_to_rad(spread_degrees) / float(bullet_count - 1)
