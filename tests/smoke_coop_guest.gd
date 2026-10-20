@@ -12,6 +12,9 @@ var failures: Array[String] = []
 var server: RoomServer
 var host: WebSocketPeer
 var host_inbox: Array = []
+## A second guest for the host migration; polled here, its messages kept.
+var dani: WebSocketPeer
+var dani_inbox: Array = []
 var _tick := 0
 
 
@@ -20,6 +23,10 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if dani:
+		dani.poll()
+		while dani.get_available_packet_count() > 0:
+			dani_inbox.append(JSON.parse_string(dani.get_packet().get_string_from_utf8()))
 	if host == null:
 		return
 	host.poll()
@@ -241,6 +248,33 @@ func _guest_shows_the_host_run() -> void:
 	_expect(survival.players.size() == 1, "a teammate who left must go: %d players" % survival.players.size())
 	_expect(ana_puppet == null or not is_instance_valid(ana_puppet) or ana_puppet.is_queued_for_deletion(), "the puppet is removed")
 
+	# The host leaves mid-run: this guest is next in line and takes the run over (S23).
+	dani = WebSocketPeer.new()
+	dani.connect_to_url(RoomClient.server_url())
+	_expect(await _until(func() -> bool: return dani.get_ready_state() == WebSocketPeer.STATE_OPEN), "Dani could not connect")
+	dani.send_text(JSON.stringify({"t": "join", "code": code, "name": "Dani"}))
+	_expect(await _until(func() -> bool: return client.room.players.size() == 3), "Dani never joined")
+	var chaser_row := [30, NetSnapshot.KIND_CHASER, 600.0, 500.0, 0.0, false]
+	await _stream(0.4, [beto_row], [chaser_row], [], {"w": 4, "br": false, "tl": 12.0, "sc": 300})
+	var last_tick := _tick
+	host.send_text(JSON.stringify({"t": "leave"}))
+	_expect(await _until(func() -> bool: return main.get_node_or_null("CoopHost") != null, 240), "the next host must take the run over")
+	_expect(main.get_node_or_null("CoopGuest") == null, "the new host stops being a guest")
+	_expect(me.input is LocalInput and not me.input is GuestInput, "the new host's own shots are real now")
+	_expect(survival.spawner.running and survival.spawner.wave == 4 and not survival.spawner.in_break(),
+		"the run goes on from the wave it was in: wave %d running %s" % [survival.spawner.wave, survival.spawner.running])
+	var taken := survival.enemies.get_children().filter(func(n: Node) -> bool: return n is Enemy and not n.is_queued_for_deletion())
+	_expect(taken.size() == 1 and taken[0].is_physics_processing() and taken[0].collision_layer != 0,
+		"the enemy that was shown becomes a real one")
+	_expect(await _until(func() -> bool: return survival.players.size() == 2, 240), "Dani joins the new host's run")
+	dani_inbox.clear()
+	await _seconds(0.6)
+	var dani_snaps := dani_inbox.filter(func(m: Variant) -> bool: return m is Dictionary and m.get("t") == "snap")
+	_expect(not dani_snaps.is_empty(), "the other guests get snapshots from the new host")
+	if not dani_snaps.is_empty():
+		_expect(int(dani_snaps[0].d.k) > last_tick, "the new host's ticks go on after the old host's: %d after %d" % [int(dani_snaps[0].d.k), last_tick])
+		_expect(int(dani_snaps[0].d.sc) == 300, "the score carries over")
+
 	# A lost connection says so instead of leaving a frozen run.
 	server.stop()
 	_expect(await _until(func() -> bool: return main.get("lost_connection") == true, 600), "the guest must notice the lost connection")
@@ -251,4 +285,5 @@ func _guest_shows_the_host_run() -> void:
 	MainMenu.seen = true
 	client.leave()
 	host.close()
+	dani.close()
 	await _seconds(0.1)

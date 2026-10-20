@@ -19,6 +19,8 @@ var flash := 0.0
 var look_override := Vector2.ZERO
 
 var _retarget_in := 0
+## The layers a puppet set aside, given back when it becomes real again.
+var _real_layers := Vector2i(-1, -1)
 
 
 func _ready() -> void:
@@ -92,8 +94,18 @@ func _apply_contact_damage() -> void:
 ## blocks anyone here.
 func become_puppet() -> void:
 	set_physics_process(false)
+	_real_layers = Vector2i(collision_layer, collision_mask)
 	collision_layer = 0
 	collision_mask = 0
+
+
+## Online co-op: the guest that takes the run over turns what it showed into real enemies.
+func become_real() -> void:
+	if _real_layers.x >= 0:
+		collision_layer = _real_layers.x
+		collision_mask = _real_layers.y
+	look_override = Vector2.ZERO
+	set_physics_process(true)
 
 
 ## Color of the death burst; subclasses use their body color.

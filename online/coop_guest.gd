@@ -5,6 +5,8 @@ extends Node
 ## placed where the host's snapshots say, drawn a little in the past (DELAY) so they move
 ## smoothly between snapshots. The guest's own player moves here at once and its position,
 ## aim and trigger go to the host; its health, downs and revives come back from the host.
+## When the host leaves and this machine is next in line, `promoted` fires and `take_over`
+## turns what is shown into a real run for the new host.
 
 const INPUTS_PER_SECOND := 30.0
 ## How far behind the newest snapshot puppets are drawn: two snapshots at 20 a second, so
@@ -17,6 +19,9 @@ const OFFSET_CREEP := 0.05
 ## When the host's view of this player drifts this far from the local one (the host could
 ## not follow, or put the player somewhere), the host's position wins.
 const CORRECTION_DISTANCE := 160.0
+
+## The host left and this machine is the room's host now.
+signal promoted
 
 const CHASER := preload("res://core/enemies/chaser.tscn")
 const SHOOTER := preload("res://core/enemies/shooter.tscn")
@@ -59,6 +64,53 @@ func bind(run: SurvivalMode, room_client: RoomClient, room: CoopRoom) -> void:
 	mode.spawner.stop()
 	mode.player.input = GuestInput.new()
 	client.snapshot_received.connect(_on_snapshot)
+	client.room_changed.connect(_on_room_changed)
+
+
+func _on_room_changed(room: CoopRoom) -> void:
+	if room.is_host() and not _buffer.is_empty():
+		promoted.emit()
+
+
+## Turns this guest's view into the new host's run: puppet enemies become real, markers and
+## bullets in flight are dropped, teammates get inputs again (people over the network, bots
+## here), and the waves go on from the last snapshot. Returns what the new CoopHost needs:
+## {"ids", "slots" (parallel to mode.players), "tick" (where the old host's ticks would be now)}.
+func take_over() -> Dictionary:
+	var last: Dictionary = _buffer.back()
+	client.snapshot_received.disconnect(_on_snapshot)
+	client.room_changed.disconnect(_on_room_changed)
+	for id: int in _enemies.keys():
+		var node: Node = _enemies[id]
+		if node is Enemy:
+			node.become_real()
+		elif is_instance_valid(node):
+			node.queue_free()
+	_enemies.clear()
+	_drop_missing(_bullets, {})
+	mode.player.input = LocalInput.new()
+
+	var rows := _by(last.pl, NetSnapshot.P_SLOT)
+	var ids: Array[int] = []
+	var slots: Array[int] = []
+	for each in mode.players:
+		var slot := -1
+		if each == mode.player:
+			for row: Array in last.pl:
+				if int(row[NetSnapshot.P_ID]) == you:
+					slot = int(row[NetSnapshot.P_SLOT])
+		else:
+			slot = _mates.find_key(each)
+		var row: Array = rows.get(slot, [])
+		ids.append(int(row[NetSnapshot.P_ID]) if not row.is_empty() else 0)
+		slots.append(maxi(slot, 0))
+
+	mode.rng.randomize()
+	mode.spawner.resume(mode.rng, mode.arena, mode.players, mode.enemies, int(last.w), last.br, last.tl)
+	var since_last := maxf(_clock - _offset - last.at, 0.0)
+	set_physics_process(false)
+	set_process(false)
+	return {"ids": ids, "slots": slots, "tick": int(last.k) + 1 + roundi(since_last * CoopHost.SNAPSHOTS_PER_SECOND)}
 
 
 func _physics_process(delta: float) -> void:

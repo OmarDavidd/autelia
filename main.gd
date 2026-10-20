@@ -110,6 +110,7 @@ func _apply_coop() -> void:
 		var guest := CoopGuest.new()
 		add_child(guest)
 		guest.bind(survival, client, room)
+		guest.promoted.connect(_on_promoted.bind(guest))
 	else:
 		for i in range(1, count):
 			if room.players[i].bot:
@@ -135,6 +136,16 @@ func _apply_coop() -> void:
 func _exit_tree() -> void:
 	if room_client and is_instance_valid(room_client):
 		room_client.leave()
+
+
+## The host left mid-run and this guest is next in line: it becomes the host.
+func _on_promoted(guest: CoopGuest) -> void:
+	var state := guest.take_over()
+	guest.queue_free()
+	remove_child(guest)
+	var host := CoopHost.new()
+	add_child(host)
+	host.take_over(survival, room_client, room_client.room, state)
 
 
 func _on_connection_lost() -> void:

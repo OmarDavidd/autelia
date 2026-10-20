@@ -51,6 +51,15 @@ func start(rng: RandomNumberGenerator, arena: Arena, players: Array[Player], con
 	running = true
 
 
+## Online co-op: a guest taking the run over goes on from the wave the old host was in.
+func resume(rng: RandomNumberGenerator, arena: Arena, players: Array[Player], container: Node2D,
+		index: int, breaking: bool, seconds_left: float) -> void:
+	start(rng, arena, players, container)
+	wave = index
+	_in_break = breaking
+	_time_left = seconds_left
+
+
 func stop() -> void:
 	running = false
 

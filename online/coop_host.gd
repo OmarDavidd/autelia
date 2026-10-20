@@ -51,10 +51,36 @@ func bind(run: SurvivalMode, room_client: RoomClient, room: CoopRoom) -> void:
 		if mode.add_player(input):
 			ids.append(entry.id)
 			slots.append(mode.players.size() - 1)
+	_connect()
+
+
+func _connect() -> void:
 	client.input_received.connect(_on_input)
 	client.room_changed.connect(_on_room_changed)
 	Events.enemy_hit.connect(_on_enemy_hit)
 	Events.enemy_killed.connect(_on_enemy_killed)
+
+
+## Online co-op: this machine was a guest and the host left. `state` comes from
+## CoopGuest.take_over; teammates get their inputs back and ticks go on after the old host's.
+func take_over(run: SurvivalMode, room_client: RoomClient, room: CoopRoom, state: Dictionary) -> void:
+	mode = run
+	client = room_client
+	ids.assign(state.ids)
+	slots.assign(state.slots)
+	_tick = state.tick
+	var center := mode.arena.size / 2.0
+	for i in range(1, mode.players.size()):
+		var input: PlayerInput
+		if ids[i] == 0:
+			input = BotInput.new(center, mode.used_seed + slots[i])
+		else:
+			input = NetworkInput.new()
+			_inputs[ids[i]] = input
+		mode.players[i].input = input
+	_connect()
+	# The old host is gone, and someone may have joined since the last snapshot.
+	_on_room_changed(room)
 
 
 func _physics_process(delta: float) -> void:
