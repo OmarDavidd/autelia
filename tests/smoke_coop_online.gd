@@ -119,9 +119,10 @@ func _host_creates_and_starts() -> void:
 	await _frames(3)
 	_expect(GameSession.mode == GameSession.Mode.COOP, "co-op mode not selected")
 	var mode: SurvivalMode = main.get_node("Survival")
-	# Remote humans join the run in stage 2c; the arena already counts them.
 	_expect(mode.arena.size == CoopRules.arena_size(3), "arena must count all three members: %s" % str(mode.arena.size))
-	_expect(mode.players.size() == 2 and mode.players[1].input is BotInput, "local player and the bot must play")
+	# Stage 2c: the guest plays in the host's run, in room order, next to the bot.
+	_expect(mode.players.size() == 3 and mode.players[1].input is NetworkInput and mode.players[2].input is BotInput,
+		"the host, Beto and the bot must play")
 	_expect(await _until(func() -> bool: return beto.room.started), "the guest must hear the start")
 	beto.leave()
 	RoomClient.shared(get_tree()).leave()

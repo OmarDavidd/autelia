@@ -11,6 +11,11 @@ var on_spawn: Callable
 var _elapsed := 0.0
 
 
+## How far along the telegraph is, from 0 to 1.
+func progress() -> float:
+	return clampf(_elapsed / duration, 0.0, 1.0)
+
+
 func _physics_process(delta: float) -> void:
 	_elapsed += delta
 	queue_redraw()

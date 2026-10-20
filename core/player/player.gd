@@ -1,7 +1,7 @@
 class_name Player
 extends CharacterBody2D
 ## Top-down player: free movement with acceleration, aims and holds to shoot.
-## Intentions come from `input` (keyboard and mouse by default, a bot, later the network).
+## Intentions come from `input` (keyboard and mouse by default, a bot, a guest over the network).
 
 const RADIUS := 16.0
 ## Invulnerability after reviving, so the player is not knocked down again on arrival.
@@ -39,9 +39,12 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var move := input.move_vector(self)
-	var rate := acceleration if move != Vector2.ZERO else friction
-	velocity = velocity.move_toward(move * speed, rate * delta)
+	if input.reports_position():
+		velocity = input.reported_velocity(self, delta)
+	else:
+		var move := input.move_vector(self)
+		var rate := acceleration if move != Vector2.ZERO else friction
+		velocity = velocity.move_toward(move * speed, rate * delta)
 	move_and_slide()
 
 	var aim_at := aim_override if aim_override.is_finite() else input.aim_point(self)

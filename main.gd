@@ -87,9 +87,16 @@ func _apply_coop() -> void:
 	survival.add_child(keeper)
 	survival.hud.show_score(keeper)
 	survival.hud.board.show_note("El cooperativo todavía no tiene tabla")
-	for i in range(1, count):
-		if room.players[i].bot:
-			survival.add_player(BotInput.new(center, survival.used_seed + i))
+	var client := _online_client(room)
+	if client and room.is_host():
+		# Online host: this run is the real one; guests play in it through the server.
+		var host := CoopHost.new()
+		add_child(host)
+		host.bind(survival, client, room)
+	else:
+		for i in range(1, count):
+			if room.players[i].bot:
+				survival.add_player(BotInput.new(center, survival.used_seed + i))
 
 	survival.get_node("Camera").enabled = false
 	camera = FollowCamera.new()
@@ -105,6 +112,14 @@ func _apply_coop() -> void:
 		touch.name = "TouchControls"
 		add_child(touch)
 		touch.bind(survival)
+
+
+## The room server link when this room came from it and is still connected, else null.
+func _online_client(room: CoopRoom) -> RoomClient:
+	var client := get_tree().root.get_node_or_null("RoomClient") as RoomClient
+	if client and client.is_connected_to_server() and client.room and client.room.code == room.code:
+		return client
+	return null
 
 
 func _apply_gun_game() -> void:

@@ -10,6 +10,10 @@ signal room_changed(room: CoopRoom)
 ## (not_found, full, bad_name, bad_code, busy, bad_request).
 signal failed(reason: String)
 signal disconnected
+## In a started room (stage 2c). The host gets its guests' inputs, with "from" set by the
+## server; the guests get the host's snapshots.
+signal input_received(message: Dictionary)
+signal snapshot_received(data: Dictionary)
 
 const DEFAULT_URL := "wss://juego.omard.space"
 const CONNECT_SECONDS := 6.0
@@ -64,6 +68,18 @@ func add_bot() -> void:
 
 func start() -> void:
 	_request({"t": "start"})
+
+
+## Game traffic is sent only while connected and never queued: a late input or snapshot is
+## worth less than the next one.
+func send_input(seq: int, at: Vector2, aim: Vector2, shoot: bool) -> void:
+	if is_connected_to_server():
+		_ws.send_text(JSON.stringify({"t": "in", "q": seq, "p": [at.x, at.y], "a": [aim.x, aim.y], "s": shoot}))
+
+
+func send_snapshot(data: Dictionary) -> void:
+	if is_connected_to_server():
+		_ws.send_text(JSON.stringify({"t": "snap", "d": data}))
 
 
 func leave() -> void:
@@ -143,6 +159,12 @@ func _receive(text: String) -> void:
 				room_changed.emit(room)
 		"error":
 			failed.emit(str(message.get("reason", "bad_request")))
+		"in":
+			if message.get("from") is float:
+				input_received.emit(message)
+		"snap":
+			if message.get("d") is Dictionary:
+				snapshot_received.emit(message.d)
 
 
 func _close() -> void:
